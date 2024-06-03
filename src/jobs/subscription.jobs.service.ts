@@ -1,12 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { Prisma } from "@prisma/client";
-import { getNickname } from "libs/common";
-import { buildFeedItemAndKeywordInputList, searchPodcastEpisodeFromItunes } from "libs/itunes";
-import { DBService } from "src/db/db.service";
-import { PKPrismaClient } from "src/db/prisma.client";
-import { EmailService } from "src/email/email.service";
-import { NotificationParams } from "src/models/subscription";
+import { getNickname } from "../utils/common";
+import { buildFeedItemAndKeywordInputList, searchPodcastEpisodeFromItunes } from "../utils/itunes";
+import { DBService } from "../db/db.service";
+import { PKPrismaClient } from "../db/prisma.client";
+import { EmailService } from "../email/email.service";
+import { NotificationParams } from "../models/subscription";
 
 
 @Injectable()
@@ -22,8 +22,12 @@ export class SubscriptionJobsService {
 
     // cron job run every 3 hours
     @Cron('0 */3 * * * *')
-    async updateUserSubscription() {
+    async usUpdateJob() {
         this.logger.log('The subscription job has been run');
+        await this.updateUserSubscription()
+    }
+
+    async updateUserSubscription() {
         const allUserSubs = await this.dbService.getAllUserSubscriptions();
         for (const sub of allUserSubs) {
             const keyword = sub.Keyword
@@ -107,7 +111,7 @@ export class SubscriptionJobsService {
             throw new Error(errMsg)
         }
 
-        const ksList = await this.dbService.queryUserLatestKeywordSubscriptionFeedItemList(userInfo.id, keyword, source, country, excludeFeedIds, String(usEnrity.latest_id), 0, 10)
+        const ksList = await this.dbService.queryUserLatestKeywordSubscriptionFeedItemList(userInfo.id, keyword, source, country, excludeFeedIds, usEnrity.latest_id, 0, 10)
         const totalCount = await this.prisma.keyword_subscription.count({
             where: {
                 keyword: keyword,

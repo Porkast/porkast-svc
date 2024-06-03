@@ -1,4 +1,4 @@
-import { FeedItem } from "src/models/feed"
+import { FeedItem } from "../models/feed"
 import { convertMillsTimeToDuration, generateFeedItemId } from "./common"
 import { Prisma } from "@prisma/client"
 
@@ -8,7 +8,10 @@ export const searchPodcastEpisodeFromItunes = async (q: string, entity: string, 
     const res = await fetch(`https://itunes.apple.com/search?term=${q}&entity=${entity}&media=podcast&country=${country}&limit=${totalCount}`)
     const jsonResp = await res.json()
     var items: FeedItem[] = []
-    const excludeFeedIdList = excludeFeedId.split(',')
+    let excludeFeedIdList: string[] = []
+    if (excludeFeedId) {
+        excludeFeedIdList = excludeFeedId.split(',')
+    }
     for (const resultItem of jsonResp.results) {
         // if the resultItem.collectionId is in excludeFeedIdList, skip
         if (excludeFeedIdList.includes(String(resultItem.collectionId))) {

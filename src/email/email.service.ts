@@ -1,6 +1,4 @@
-import { UserSubscriptionUpdateNotification } from "libs/email";
-import { Resend } from "resend";
-import { NotificationParams } from "src/models/subscription";
+import { NotificationParams } from "../models/subscription";
 import { EmailServiceResend } from "./email.service.resend";
 import { Injectable } from "@nestjs/common";
 
@@ -18,13 +16,7 @@ export class EmailService {
             from: 'Porkast <noreply@porkast.com>',
             to: [params.to],
             subject: params.subject,
-            react: UserSubscriptionUpdateNotification({
-                keyword: params.keyword,
-                nickname: params.nickname,
-                updateCount: params.updateCount,
-                titleList: params.titleList,
-                link: params.link
-            })
+            html: ""
         });
     }
 }

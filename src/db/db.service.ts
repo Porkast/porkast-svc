@@ -1,9 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import { PKPrismaClient } from "./prisma.client";
-import { SubscriptionDataDto } from "src/models/subscription";
-import { FeedItem, FeedItemDto } from "src/models/feed";
+import { SubscriptionDataDto } from "../models/subscription";
+import { FeedItem, FeedItemDto } from "../models/feed";
 import { Prisma } from "@prisma/client";
-import { formatDateTime } from "libs/common";
+import { formatDateTime } from "../utils/common";
 
 
 @Injectable()
@@ -48,7 +48,7 @@ export class DBService {
         return subscriptionList
     }
 
-    async queryUserLatestKeywordSubscriptionFeedItemList(userId: string, keyword: string, source: string, country: string, excludeFeedId: string, latestId: string, offset: number, limit: number): Promise<FeedItem[]> {
+    async queryUserLatestKeywordSubscriptionFeedItemList(userId: string, keyword: string, source: string, country: string, excludeFeedId: string, latestId: number, offset: number, limit: number): Promise<FeedItem[]> {
         const resultList: FeedItem[] = []
 
         const queryResultList = await this.prisma.$queryRaw<FeedItemDto[]>(
