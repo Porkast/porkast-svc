@@ -12,11 +12,11 @@ export class EmailService {
 
     async sendSubscriptionUpdateEmail(params: NotificationParams) {
         const resend = this.resendClient.getResendClient();
-        await resend.emails.send({
-            from: 'Porkast <noreply@porkast.com>',
-            to: [params.to],
-            subject: params.subject,
-            html: ""
-        });
+        // await resend.emails.send({
+        //     from: 'Porkast <noreply@porkast.com>',
+        //     to: [params.to],
+        //     subject: params.subject,
+        //     html: ""
+        // });
     }
 }
