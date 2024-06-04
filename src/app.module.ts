@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { JobsModule } from './jobs/jobs.module';
 
 const ENV = process.env.NODE_ENV;
 
@@ -13,6 +14,7 @@ const ENV = process.env.NODE_ENV;
       }
     ),
     ScheduleModule.forRoot(),
+    JobsModule
   ],
 })
 export class AppModule { }
