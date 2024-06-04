@@ -20,11 +20,12 @@ export class SubscriptionJobsService {
 
     private readonly logger = new Logger(SubscriptionJobsService.name);
 
-    // cron job run every 3 hours
-    @Cron('0 */3 * * * *')
+    // cron job run every 3 minutes
+    @Cron('0 */3 * * *')
     async usUpdateJob() {
-        this.logger.log('The subscription job has been run');
+        this.logger.log('The subscription job start running');
         await this.updateUserSubscription()
+        this.logger.log('The subscription job end');
     }
 
     async updateUserSubscription() {
