@@ -28,6 +28,8 @@
     "@prisma/client": "^5.14.0",
     "@react-email/components": "^0.0.19",
     "@react-email/render": "^0.0.15",
+    "@types/hogan.js": "^3.0.5",
+    "hogan.js": "^3.0.2",
     "nodemailer": "^6.9.13",
     "reflect-metadata": "^0.2.0",
     "resend": "^3.2.0",
