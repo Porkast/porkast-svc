@@ -12,5 +12,6 @@ import { TeleBotUpdate } from "src/telegram/bot.update";
         }),
         DbModule
     ],
+    exports: [TeleBotService]
 })
 export class TeleBotModule { }
