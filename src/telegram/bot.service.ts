@@ -3,6 +3,7 @@ import { InjectBot } from "nestjs-telegraf";
 import { LimitedQueue } from "src/utils/queue";
 import { Context, Telegraf } from "telegraf";
 import { User } from "telegraf/typings/core/types/typegram";
+import { Markup } from "telegraf/markup";
 
 
 @Injectable()
@@ -41,6 +42,23 @@ export class TeleBotService {
             const chatHistory = this.chatHistoryMap.get(chatId)
             return chatHistory.getQueue()
         }
+    }
+
+    sendSubscriptionNewUpdateMessage(
+        chatId: string, 
+        keyword: string,
+        updateCount: number,
+        titleList: string[],
+        link: string
+    ) {
+        const message = `
+#${keyword} has been updated, ${updateCount} new episodes were added, click to check it out.
+
+${titleList.join('\n')}
+
+${link}
+        `
+        this.bot.telegram.sendMessage(chatId, message)
     }
 
 

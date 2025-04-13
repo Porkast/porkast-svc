@@ -7,6 +7,7 @@ import { DBService } from "../db/db.service";
 import { PKPrismaClient } from "../db/prisma.client";
 import { EmailService } from "../email/email.service";
 import { NotificationParams } from "../models/subscription";
+import { TeleBotService } from "src/telegram/bot.service";
 
 
 @Injectable()
@@ -15,7 +16,8 @@ export class SubscriptionJobsService {
     constructor(
         private readonly dbService: DBService,
         private readonly prisma: PKPrismaClient,
-        private readonly emailService: EmailService
+        private readonly emailService: EmailService,
+        private readonly botService: TeleBotService
     ) { }
 
     private readonly logger = new Logger(SubscriptionJobsService.name);
@@ -136,6 +138,9 @@ export class SubscriptionJobsService {
                 link: link,
                 to: userEmail,
                 subject: "#" + keyword + " has new podcasts update"
+            }
+            if (userInfo.telegram_id !== null && userInfo.telegram_id !== undefined && userInfo.telegram_id !== '') {
+                this.botService.sendSubscriptionNewUpdateMessage(userInfo.telegram_id, keyword, totalCount, ksList.map(ks => ks.Title), link)
             }
             try {
 
