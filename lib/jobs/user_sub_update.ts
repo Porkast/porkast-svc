@@ -16,6 +16,7 @@ export async function updateUserSubscription() {
 
         if (!feedItemList || feedItemList.length === 0) {
             const errMsg = 'No results from itunes, with parameters \n' + JSON.stringify({ keyword, country, excludeFeedIds, source })
+            console.log(errMsg)
             continue
         }
 
@@ -27,6 +28,7 @@ export async function updateUserSubscription() {
                 skipDuplicates: true
             })
         } catch (error) {
+            console.error('Insert keyword subscription list failed', error)
         }
 
         try {
@@ -43,6 +45,7 @@ export async function updateUserSubscription() {
                 }
             } else {
                 const errMsg = 'Insert search feed item list failed ' + e
+                console.error(errMsg)
                 continue
             }
         }
@@ -51,6 +54,7 @@ export async function updateUserSubscription() {
             await updateUserSubscriptionInfo(keyword, country, excludeFeedIds, source, sub.UserId)
         } catch (error) {
             const errMsg = 'Notify user subscription updated with keyword: ' + keyword + ' ,country: ' + country + ' ,excludeFeedIds: ' + excludeFeedIds + ' ,source: ' + source + ' ,userId: ' + sub.UserId + ' failed: ' + error
+            console.error(errMsg)
         }
 
     }
@@ -170,7 +174,7 @@ async function updateUserSubscriptionInfo(keyword: string, country: string, excl
                 })
             }
         } catch (error) {
-            // logger.error('Failed to send subscription update email to ' + userEmail, " with params " + JSON.stringify(emailParams))
+            console.error('Failed to send subscription update email to ' + userEmail, " with params " + JSON.stringify(emailParams))
         }
 
     }
