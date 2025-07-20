@@ -27,6 +27,7 @@
     "@prisma/client": "^6.12.0",
     "aws-cdk-lib": "^2.202.0",
     "aws-lambda": "^1.0.7",
-    "constructs": "^10.0.0"
+    "constructs": "^10.0.0",
+    "uuid": "^11.1.0"
   }
 }

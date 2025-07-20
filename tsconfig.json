@@ -7,7 +7,6 @@
       "es2022"
     ],
     "declaration": true,
-    "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
     "noImplicitThis": true,
