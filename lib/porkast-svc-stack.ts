@@ -11,7 +11,7 @@ export class PorkastSvcStack extends cdk.Stack {
         super(scope, id, props);
         const scheduledLambda = new NodejsFunction(this, 'PorkastScheduledUpdateUserSubLambda', {
             runtime: lambda.Runtime.NODEJS_20_X,
-            entry: path.join(__dirname, '../lambda/handler.ts'),
+            entry: path.join(__dirname, '../lib/lambda/handler.ts'),
             handler: 'handler',
             timeout: cdk.Duration.seconds(30),
             memorySize: 256,
