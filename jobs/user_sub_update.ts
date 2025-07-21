@@ -1,9 +1,10 @@
-import prisma from "../../prisma/client"
-import { getAllUserSubscriptions, queryUserLatestKeywordSubscriptionFeedItemList } from "../../database/subscription"
-import { buildFeedItemAndKeywordInputList, searchPodcastEpisodeFromItunes } from "../../utils/itunes";
+import prisma from "../prisma/client"
+import { getAllUserSubscriptions, queryUserLatestKeywordSubscriptionFeedItemList } from "../database/subscription"
+import { buildFeedItemAndKeywordInputList, searchPodcastEpisodeFromItunes } from "../utils/itunes";
 import { Prisma } from "@prisma/client";
-import { NotificationParams } from "../../models/subscription";
-import { getNickname } from "../../utils/common";
+import { NotificationParams } from "../models/subscription";
+import { getNickname } from "../utils/common";
+import { sendSubscriptionUpdateEmail } from "../email/resend"
 
 export async function updateUserSubscription() {
     const allUserSubs = await getAllUserSubscriptions();
@@ -131,7 +132,7 @@ async function updateUserSubscriptionInfo(keyword: string, country: string, excl
 
             const sendNotificationEmail = async (latestId: number) => {
                 if (latestId != 0) {
-                    // await emailService.sendSubscriptionUpdateEmail(emailParams)
+                    await sendSubscriptionUpdateEmail(emailParams)
                 }
             }
 

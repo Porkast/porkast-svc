@@ -1,4 +1,4 @@
-import { updateUserSubscription } from "../../lib/jobs/user_sub_update";
+import { updateUserSubscription } from "../../jobs/user_sub_update";
 
 async function runLocalTest() {
     try {
