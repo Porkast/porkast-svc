@@ -32,6 +32,7 @@
     "constructs": "^10.0.0",
     "hogan.js": "^3.0.2",
     "resend": "^4.7.0",
+    "telegraf": "^4.16.3",
     "uuid": "^11.1.0"
   }
 }

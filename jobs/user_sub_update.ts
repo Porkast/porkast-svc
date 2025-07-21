@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { NotificationParams } from "../models/subscription";
 import { getNickname } from "../utils/common";
 import { sendSubscriptionUpdateEmail } from "../email/resend"
+import { sendSubscriptionNewUpdateMessage } from "../telegram/bot";
 
 export async function updateUserSubscription() {
     const allUserSubs = await getAllUserSubscriptions();
@@ -126,7 +127,7 @@ async function updateUserSubscriptionInfo(keyword: string, country: string, excl
             subject: "#" + keyword + " has new podcasts update"
         }
         if (userInfo.telegram_id !== null && userInfo.telegram_id !== undefined && userInfo.telegram_id !== '') {
-            // botService.sendSubscriptionNewUpdateMessage(userInfo.telegram_id, keyword, totalCount, ksList.map(ks => ks.Title), link)
+            sendSubscriptionNewUpdateMessage(userInfo.telegram_id, keyword, totalCount, ksList.map(ks => ks.Title), link)
         }
         try {
 
