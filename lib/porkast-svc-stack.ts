@@ -20,10 +20,17 @@ export class PorkastSvcStack extends cdk.Stack {
             },
         });
 
-        const rule = new events.Rule(this, 'ScheduleRule', {
-            schedule: events.Schedule.rate(cdk.Duration.hours(1)),
+        const hourlyRule = new events.Rule(this, 'HourlyTrigger', {
+            schedule: events.Schedule.cron({
+                minute: '0',
+                hour: '*',
+            }),
+            description: 'Run every hour',
         });
 
-        rule.addTarget(new targets.LambdaFunction(scheduledLambda));
+        hourlyRule.addTarget(new targets.LambdaFunction(scheduledLambda, {
+            retryAttempts: 2,
+        }));
+
     }
 }
