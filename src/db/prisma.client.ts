@@ -1,31 +1,22 @@
-import { Injectable, OnModuleInit } from "@nestjs/common";
-import { Prisma, PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client'
 
-
-@Injectable()
-export class PKPrismaClient extends PrismaClient<Prisma.PrismaClientOptions, Prisma.LogLevel> implements OnModuleInit {
-
-    constructor() {
-        super({
-            log: [
-                { emit: 'event', level: 'query' },
-                { emit: 'stdout', level: 'info' },
-                { emit: 'stdout', level: 'warn' },
-                { emit: 'stdout', level: 'error' },
-            ],
-            errorFormat: 'colorless',
-        });
-    }
-
-    async onModuleInit() {
-        if (process.env.NODE_ENV !== 'production') {
-            this.$on('query', (e) => {
-                console.log('Query: ' + e.query)
-                console.log('Params: ' + e.params)
-                console.log('Target: ' + e.target)
-                console.log('Duration: ' + e.duration + 'ms')
-            })
-        }
-        await this.$connect();
-    }
+declare global {
+    var prisma: PrismaClient | undefined
 }
+
+const prisma = global.prisma || new PrismaClient({
+    log: ['query', 'info', 'warn', 'error'],
+    datasources: {
+        db: {
+            url: process.env.DATABASE_URL + (process.env.NODE_ENV === 'production'
+                ? '?connection_limit=5&pool_timeout=10'
+                : '')
+        }
+    }
+})
+
+if (process.env.NODE_ENV !== 'production') {
+    global.prisma = prisma
+}
+
+export default prisma
