@@ -2,22 +2,23 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Bun: Debug Hono App",
             "type": "node",
             "request": "launch",
-            "name": "Debug Nest App",
-            "runtimeExecutable": "yarn",
+            "cwd": "${workspaceFolder}",
+            "runtimeExecutable": "bun",
             "runtimeArgs": [
+                "--inspect",
                 "run",
-                "start:debug",
-                "--",
-                "--inspect-brk",
-                "--preserve-symlinks"
+                "dev"
             ],
-            "autoAttachChildProcesses": true,
-            "restart": true,
-            "sourceMaps": true,
-            "stopOnEntry": false,
             "console": "integratedTerminal",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "outputCapture": "std",
+            "restart": true,
+            "sourceMaps": true
         }
     ]
 }

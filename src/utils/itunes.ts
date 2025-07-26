@@ -1,12 +1,14 @@
-import { FeedItem } from "../models/feed"
-import { convertMillsTimeToDuration, generateFeedItemId } from "./common"
 import { Prisma } from "@prisma/client"
+import { FeedItem } from "../models/feeds"
+import { convertMillsTimeToDuration, generateFeedItemId } from "./common"
+import { iTunesResponse } from "../models/itunes"
 
 
 
 export const searchPodcastEpisodeFromItunes = async (q: string, entity: string, country: string, excludeFeedId: string, offset: number, limit: number, totalCount: number): Promise<FeedItem[]> => {
     const res = await fetch(`https://itunes.apple.com/search?term=${q}&entity=${entity}&media=podcast&country=${country}&limit=${totalCount}`)
-    const jsonResp = await res.json()
+
+    const jsonResp = await res.json() as iTunesResponse;
     var items: FeedItem[] = []
     let excludeFeedIdList: string[] = []
     if (excludeFeedId) {
@@ -29,12 +31,12 @@ export const searchPodcastEpisodeFromItunes = async (q: string, entity: string, 
             HighlightTitle: resultItem.trackName,
             Link: resultItem.trackViewUrl,
             PubDate: formatedPubDate,
-            Author: resultItem.artistIds.join(', '),
+            Author: resultItem.artistIds.map(id => String(id)).join(', '),
             InputDate: new Date(formatedPubDate),
             ImageUrl: resultItem.artworkUrl160,
             EnclosureUrl: resultItem.episodeUrl,
             EnclosureType: resultItem.episodeFileExtension,
-            EnclosureLength: resultItem.trackTimeMillis,
+            EnclosureLength: String(resultItem.trackTimeMillis),
             Duration: duration,
             Episode: "",
             Explicit: "",

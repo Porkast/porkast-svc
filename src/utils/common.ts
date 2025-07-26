@@ -1,5 +1,4 @@
 import { v5 as uuidv5 } from 'uuid';
-import { v4 as uuidv4 } from 'uuid';
 
 export const convertMillsTimeToDuration = (mills: number): string => {
     // Check if the duration is in the thousands digits
@@ -31,4 +30,3 @@ export const getNickname = (email: string, nickname: string): string => {
     }
     return nickname
 }
-
