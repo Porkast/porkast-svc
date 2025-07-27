@@ -9,7 +9,7 @@ export function IniteBakerJobs() {
         name: 'user-sub-update',
         cron: "0 0 * * * *",
         callback: async () => {
-            console.log('Run user subscription job every hour');
+            console.log('Start run user subscription job update');
             await updateUserSubscription();
         }
     })

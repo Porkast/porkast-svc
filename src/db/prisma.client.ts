@@ -5,7 +5,7 @@ declare global {
 }
 
 const prisma = global.prisma || new PrismaClient({
-    log: ['query', 'info', 'warn', 'error'],
+    log: process.env.NODE_ENV === 'production' ? ['error'] : ['query', 'info', 'warn', 'error'],
     datasources: {
         db: {
             url: process.env.DATABASE_URL + (process.env.NODE_ENV === 'production'
