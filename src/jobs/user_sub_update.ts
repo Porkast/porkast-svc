@@ -9,7 +9,8 @@ import { sendSubscriptionNewUpdateMessage } from "../telegram/bot";
 
 export async function updateUserSubscription() {
     const allUserSubs = await getAllUserSubscriptions();
-    for (const sub of allUserSubs) {
+    const updatePromises = allUserSubs.map(async (sub) => {
+         console.log('Update user subscription for user: ' + sub.UserId + ' ,keyword: ' + sub.Keyword + ' ,country: ' + sub.Country + ' ,excludeFeedIds: ' + sub.ExcludeFeedId + ' ,source: ' + sub.Source)
         const keyword = sub.Keyword
         const country = sub.Country
         const excludeFeedIds = sub.ExcludeFeedId
@@ -19,7 +20,7 @@ export async function updateUserSubscription() {
         if (!feedItemList || feedItemList.length === 0) {
             const errMsg = 'No results from itunes, with parameters \n' + JSON.stringify({ keyword, country, excludeFeedIds, source })
             console.log(errMsg)
-            continue
+            return
         }
 
         const model = await buildFeedItemAndKeywordInputList(keyword, country, excludeFeedIds, source, feedItemList)
@@ -48,7 +49,7 @@ export async function updateUserSubscription() {
             } else {
                 const errMsg = 'Insert search feed item list failed ' + e
                 console.error(errMsg)
-                continue
+                return
             }
         }
 
@@ -58,7 +59,12 @@ export async function updateUserSubscription() {
             const errMsg = 'Notify user subscription updated with keyword: ' + keyword + ' ,country: ' + country + ' ,excludeFeedIds: ' + excludeFeedIds + ' ,source: ' + source + ' ,userId: ' + sub.UserId + ' failed: ' + error
             console.error(errMsg)
         }
-
+    })
+    try {
+        await Promise.all(updatePromises)
+        console.log('Update user subscription finished')
+    } catch (error) {
+        console.error('Update user subscription failed: ', error)
     }
 }
 
@@ -116,6 +122,7 @@ async function updateUserSubscriptionInfo(keyword: string, country: string, excl
 
     const userEmail = userInfo.email
     if (totalCount > 0 && ksList && ksList.length > 0 && userEmail) {
+        console.log(`User ${userInfo.id} subscription ${keyword} has ${totalCount} new podcast update`)
         const link = `https://porkast.com/subscription/${userInfo.id}/${keyword}`
         const emailParams: NotificationParams = {
             keyword: keyword,
