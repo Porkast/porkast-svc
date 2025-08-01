@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import teleBot from './telegram/bot.hook'
 import { IniteBakerJobs } from './jobs/job_register'
 import { marked } from 'marked'
+import { SetupTelegramWebhook } from './telegram/bot.setup'
 
 const app = new Hono()
 
@@ -13,6 +14,7 @@ app.get('/', async (c) => {
 
 app.route('/telegram', teleBot)
 
-IniteBakerJobs()
+SetupTelegramWebhook()
+// IniteBakerJobs()
 
 export default app

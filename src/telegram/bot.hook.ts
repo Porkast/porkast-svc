@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 
 const teleBot = new Hono();
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_BOT_TOKEN = process.env.TELE_BOT_TOKEN;
 
 teleBot.post('/bot-webhook', async (c) => {
     try {
@@ -16,7 +16,7 @@ teleBot.post('/bot-webhook', async (c) => {
 
             console.debug(`received message from ${userName} (${chatId}): "${text}"`);
 
-            const responseText = ``;
+            const responseText = `Hello`;
             await sendMessage(chatId, responseText);
         } else if (update.callback_query) {
             const chatId = update.callback_query.message.chat.id;
