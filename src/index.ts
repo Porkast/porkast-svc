@@ -15,6 +15,6 @@ app.get('/', async (c) => {
 app.route('/telegram', teleBot)
 
 SetupTelegramWebhook()
-// IniteBakerJobs()
+IniteBakerJobs()
 
 export default app

@@ -137,13 +137,15 @@ async function updateUserSubscriptionInfo(keyword: string, country: string, excl
             sendSubscriptionNewUpdateMessage(userInfo.telegram_id, keyword, totalCount, ksList.map(ks => ks.Title), link)
         }
         try {
-
             const sendNotificationEmail = async (latestId: number) => {
                 if (latestId != 0) {
-                    await sendSubscriptionUpdateEmail(emailParams)
+                    try {
+                        await sendSubscriptionUpdateEmail(emailParams)
+                    } catch (error) {
+                        console.error('Send subscription update email failed', error)
+                    }
                 }
             }
-
             const [_, latestItem, totalCount] = await Promise.all([
                 sendNotificationEmail(usEnrity.latest_id || 0),
                 prisma.keyword_subscription.findFirst({
