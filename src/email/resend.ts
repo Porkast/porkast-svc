@@ -1,4 +1,4 @@
-import { Resend } from "resend";
+import { CreateEmailResponse, Resend } from "resend";
 import { NotificationParams } from "../models/subscription";
 import { readFileSync } from 'fs';
 import * as path from 'path';
@@ -13,15 +13,16 @@ export function getResendInstance() {
     return new Resend(process.env.RESEND_API_KEY)
 }
 
-export async function sendSubscriptionUpdateEmail(params: NotificationParams) {
+export async function sendSubscriptionUpdateEmail(params: NotificationParams): Promise<CreateEmailResponse> {
     const resend = getResendInstance();
     const htmlTempText = generateEmailHtmlText(params)
-    await resend.emails.send({
+    const resendResult = await resend.emails.send({
         from: 'Porkast <noreply@porkast.com>',
         to: [params.to],
         subject: params.subject,
         html: htmlTempText
     });
+    return resendResult
 }
 
 function generateEmailHtmlText(params: NotificationParams) {
