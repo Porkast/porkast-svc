@@ -1,32 +1,29 @@
-import { Context, Telegraf } from "telegraf";
-import { User } from "telegraf/types";
+import { BOT_TOKEN } from "./bot.setup";
+import { BotCommands } from "./bot.types";
 
-var telBot: Telegraf<Context>;
-var botInfo: User
 
-export function getBot() {
-    if (telBot) {
-        return telBot
+export async function SetBotCommands() {
+    const setCommandsUrl = `https://api.telegram.org/bot${BOT_TOKEN}/setMyCommands`;
+    try {
+        const response = await fetch(setCommandsUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                commands: BotCommands,
+            }),
+        });
+
+        const data = await response.json();
+        if (data.ok) {
+            console.log('Telegram bot commands set successfully:', data);
+        } else {
+            console.error('Telegram bot commands set failed:', data.description);
+        }
+    } catch (error) {
+        console.error('Error setting bot commands:', error);
     }
-    telBot = new Telegraf(process.env.TELE_BOT_TOKEN || '')
-    registerBotCommands()
-    return telBot
-}
-
-function registerBotCommands() {
-    telBot.start(async (ctx) => {
-        const message = `Hi, this is Porkast bot for notify you about new episodes.`
-        await ctx.reply(message)
-    })
-}
-
-async function getBotInfo() {
-    if (botInfo) {
-        return botInfo
-    }
-    const me = await getBot().telegram.getMe();
-    botInfo = me
-    return botInfo
 }
 
 function escapeMarkdownV2(text: string): string {
@@ -63,18 +60,92 @@ ${titleStr}
 
 `
     message = escapeMarkdownV2(message)
-    getBot().telegram.sendMessage(
-        chatId,
-        message,
-        {
-            parse_mode: 'MarkdownV2',
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        { text: 'Check Now', url: link }
-                    ]
+    const requestBody = {
+        chat_id: chatId,
+        text: message,
+        parse_mode: 'MarkdownV2',
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: 'Check Now', url: link }
                 ]
-            }
+            ]
         }
-    )
+    };
+    sendMessage(JSON.stringify(requestBody))
+}
+
+export async function sendCommonTestMessage(chatId: number, text: string) {
+    if (!BOT_TOKEN) {
+        console.error('TELEGRAM_BOT_TOKEN is not set, cannot send message.');
+        return;
+    }
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                chat_id: chatId,
+                text: text,
+            }),
+        });
+        const data = await response.json();
+        if (!data.ok) {
+            console.error('Send message failed:', data.description);
+        }
+    } catch (error) {
+        console.error('Error sending message:', error);
+    }
+}
+
+export async function sendMessage(body: string) {
+    if (!BOT_TOKEN) {
+        console.error('TELEGRAM_BOT_TOKEN is not set, cannot send message.');
+        return;
+    }
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: body
+        });
+        const data = await response.json();
+        if (!data.ok) {
+            console.error('Send message failed:', data.description);
+        }
+    } catch (error) {
+        console.error('Error sending message:', error);
+    }
+}
+
+export async function answerCallbackQuery(callbackQueryId: string, text: string = '') {
+    if (!BOT_TOKEN) {
+        console.error('TELEGRAM_BOT_TOKEN is not set, cannot answer callback query.');
+        return;
+    }
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`;
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                callback_query_id: callbackQueryId,
+                text: text,
+            }),
+        });
+        const data = await response.json();
+        if (!data.ok) {
+            console.error('Send message failed:', data.description);
+        }
+    } catch (error) {
+        console.error('Error sending message:', error);
+    }
 }

@@ -1,6 +1,7 @@
+import { SetBotCommands } from "./bot";
 
-const BOT_TOKEN = process.env.TELE_BOT_TOKEN;
-const BOT_WEBHOOK_URL = process.env.BOT_WEBHOOK_URL;
+export const BOT_TOKEN = process.env.TELE_BOT_TOKEN || '';
+export const BOT_WEBHOOK_URL = process.env.BOT_WEBHOOK_URL;
 
 if (!BOT_TOKEN || !BOT_WEBHOOK_URL) {
     console.error('please check TELE_BOT_TOKEN and BOT_WEBHOOK_URL in .env');
@@ -9,7 +10,12 @@ if (!BOT_TOKEN || !BOT_WEBHOOK_URL) {
 
 const webhookUrl = `https://api.telegram.org/bot${BOT_TOKEN}/setWebhook`;
 
-export async function SetupTelegramWebhook() {
+export function InitTelegramBot() {
+    SetupTelegramWebhook()
+    SetBotCommands()
+}
+
+async function SetupTelegramWebhook() {
     try {
         const response = await fetch(webhookUrl, {
             method: 'POST',

@@ -2,12 +2,10 @@ import { Hono } from 'hono'
 import teleBot from './telegram/bot.hook'
 import { IniteBakerJobs } from './jobs/job_register'
 import { marked } from 'marked'
-import { SetupTelegramWebhook } from './telegram/bot.setup'
-import { appendTrailingSlash } from 'hono/trailing-slash';
+import { InitTelegramBot } from './telegram/bot.setup'
 
 const app = new Hono()
 
-app.use(appendTrailingSlash())
 app.get('/', async (c) => {
   const readme = await Bun.file('./README.md').text()
   const readmeHtml = marked.parse(readme)
@@ -16,7 +14,7 @@ app.get('/', async (c) => {
 
 app.route('/telegram', teleBot)
 
-SetupTelegramWebhook()
+InitTelegramBot()
 IniteBakerJobs()
 
 export default app
