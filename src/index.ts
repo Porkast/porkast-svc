@@ -23,6 +23,9 @@ app.route('/api/playlist', playlistRoute)
 
 InitTelegramBot()
 IniteBakerJobs()
-console.log(app.routes)
 
+app.routes.forEach((route) => {
+  const routeInfo = `Method: ${route.method}, Path: ${route.path}`
+  console.log(routeInfo)
+});
 export default app
