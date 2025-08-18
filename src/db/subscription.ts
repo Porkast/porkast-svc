@@ -2,7 +2,8 @@ import prisma from "../db/prisma.client"
 import { SubscriptionDataDto } from "../models/subscription";
 import { FeedItem, FeedItemDto } from "../models/feeds";
 import { Prisma } from "@prisma/client";
-import { formatDateTime } from "../utils/common";
+import { formatDateTime, generateFeedItemId } from "../utils/common";
+import { searchPodcastEpisodeFromItunes } from "../utils/itunes";
 
 
 export async function getAllUserSubscriptions(): Promise<SubscriptionDataDto[]> {
@@ -101,4 +102,145 @@ export async function queryUserLatestKeywordSubscriptionFeedItemList(userId: str
     }
 
     return resultList
+}
+
+export async function doSearchSubscription(keyword: string, country: string, source: string, excludeFeedId: string) {
+    let searchResultItemList: FeedItem[] = [];
+    if (source == 'itunes' || source == '') {
+        const searchResult = await searchPodcastEpisodeFromItunes(keyword, 'podcastEpisode', country, excludeFeedId, 0, 0, 200)
+        searchResultItemList.push(...searchResult);
+    } else {
+        // TODO: implement other sources
+    }
+
+    let ksManyInput: Prisma.keyword_subscriptionCreateManyInput[] = [];
+    for (const item of searchResultItemList) {
+        const itemId = await generateFeedItemId(item.FeedLink, item.Title)
+        const channelId = await generateFeedItemId(item.FeedLink, item.ChannelTitle)
+        let ksItem: Prisma.keyword_subscriptionCreateManyInput = {
+            keyword: keyword,
+            feed_channel_id: String(channelId),
+            feed_item_id: String(itemId),
+            create_time: new Date(),
+            country: country,
+            source: source,
+            exclude_feed_id: excludeFeedId
+        }
+
+        ksManyInput.push(ksItem);
+    }
+
+    let itemManyInput: Prisma.feed_itemCreateManyInput[] = [];
+    for (const item of searchResultItemList) {
+        const itemId = await generateFeedItemId(item.FeedLink, item.Title)
+        const channelId = await generateFeedItemId(item.FeedLink, item.ChannelTitle)
+        let itemInput: Prisma.feed_itemCreateManyInput = {
+            id: itemId,
+            feed_id: String(item.FeedId),
+            channel_id: channelId,
+            feed_link: item.FeedLink,
+            channel_title: item.ChannelTitle,
+            guid: item.GUID,
+            title: item.Title,
+            link: item.Link,
+            pub_date: new Date(item.PubDate),
+            author: item.Author,
+            input_date: new Date(),
+            image_url: item.ImageUrl,
+            enclosure_url: item.EnclosureUrl,
+            enclosure_length: String(item.EnclosureLength),
+            enclosure_type: item.EnclosureType,
+            duration: item.Duration,
+            episode: item.Episode,
+            explicit: item.Explicit,
+            season: item.Season,
+            episodetype: item.EpisodeType,
+            source: item.Source,
+            description: item.Description,
+        }
+
+        itemManyInput.push(itemInput);
+    }
+
+
+    try {
+        await prisma.keyword_subscription.createMany({
+            data: ksManyInput,
+            skipDuplicates: true
+        })
+    } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError) {
+            if (e.code === 'P2002') {
+                console.log(
+                    'There is a unique constraint violation, a new record cannot be created with prisma for keyword_subscription, ignore it',
+                )
+            }
+        } else {
+            throw e
+        }
+    }
+    try {
+        await prisma.feed_item.createMany({
+            data: itemManyInput,
+            skipDuplicates: true
+        })
+    } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError) {
+            if (e.code === 'P2002') {
+                console.log(
+                    'There is a unique constraint violation, a new record cannot be created with prisma for feed_item, ignore it',
+                )
+            }
+        } else {
+            throw e
+        }
+    }
+
+}
+
+export async function queryUserKeywordSubscriptionList(userId: string, offset: number, limit: number): Promise<SubscriptionDataDto[]> {
+
+    const resultDtos: SubscriptionDataDto[] = []
+
+    const queryResutlList = await prisma.user_subscription.findMany({
+        where: {
+            user_id: userId,
+            status: 1
+        },
+        orderBy: {
+            latest_id: 'desc'
+        },
+        skip: offset,
+        take: limit
+    })
+
+    const totalCount = await prisma.user_subscription.count({
+        where: {
+            user_id: userId,
+            status: 1
+        }
+    })
+
+    for (const queryResutl of queryResutlList) {
+        resultDtos.push({
+            Id: queryResutl.id,
+            UserId: queryResutl.user_id || '',
+            CreateTime: queryResutl.create_time || new Date(),
+            Status: queryResutl.status || 0,
+            Keyword: queryResutl.keyword || '',
+            OrderByDate: queryResutl.order_by_date || 0,
+            Lang: queryResutl.lang || '',
+            Country: queryResutl.country || '',
+            ExcludeFeedId: queryResutl.exclude_feed_id || '',
+            Source: queryResutl.source || '',
+            RefId: queryResutl.ref_id || '',
+            RefName: queryResutl.ref_name || '',
+            Type: queryResutl.type || '',
+            Count: totalCount,
+            UpdateTime: queryResutl.update_time,
+            TotalCount: queryResutl.total_count || 0
+        })
+    }
+
+    return resultDtos
 }

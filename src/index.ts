@@ -5,6 +5,7 @@ import { IniteBakerJobs } from './jobs/job_register'
 import { marked } from 'marked'
 import { InitTelegramBot } from './telegram/bot.setup'
 import { userRouter } from './api/user/route'
+import { subscribeRouter } from './api/subscribe/route'
 
 const app = new Hono()
 app.use("/", cors({ origin: "*" }))
@@ -16,6 +17,7 @@ app.get('/', async (c) => {
 
 app.route('/telegram', teleBot)
 app.route('/api/user', userRouter)
+app.route('/api/subscribe', subscribeRouter)
 
 InitTelegramBot()
 IniteBakerJobs()
