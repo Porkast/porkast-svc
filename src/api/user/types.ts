@@ -20,5 +20,7 @@ export type Userinfo = {
     password: string,
     email: string,
     phone: string,
-    avatar: string
+    avatar: string,
+    regDate: Date,
+    updateDate: Date
 }

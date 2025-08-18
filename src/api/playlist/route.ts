@@ -1,7 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { AddPodcastToPlaylistRequestData, AddPodcastToPlaylistSchema, CreatePlaylistRequestData, CreatePlaylistSchema } from "./types";
-import { addPodcastToPlaylist, createPlaylist } from "./playlist";
+import { addPodcastToPlaylist, createPlaylist, getPlaylistPodcastList, getUserPlaylistList } from "./playlist";
 
 
 export const playlistRoute = new Hono()
@@ -14,6 +14,44 @@ playlistRoute.post('', zValidator('json', CreatePlaylistSchema), async (c) => {
     return c.json({
         code: 0,
         msg: message
+    })
+})
+
+playlistRoute.get('/list/:userId', async (c) => {
+
+    const userId = c.req.param('userId')
+    const limit = c.req.query('limit') || '10'
+    const offset = c.req.query('offset') || '0'
+    if (!userId) {
+        return c.json({
+            code: 1,
+            msg: 'User Id is required'
+        })
+    }
+    const data = await getUserPlaylistList(userId, limit, offset)
+    return c.json({
+        code: 0,
+        msg: 'Success',
+        data: data
+    })
+})
+
+playlistRoute.get('/list/:userId/:playlistId', async (c) => {
+    const userId = c.req.param('userId')
+    const playlistId = c.req.param('playlistId')
+    const limit = c.req.query('limit') || '10'
+    const offset = c.req.query('offset') || '0'
+    if (!userId) {
+        return c.json({
+            code: 1,
+            msg: 'User Id is required'
+        })
+    }
+    const data = await getPlaylistPodcastList(userId, playlistId, limit, offset)
+    return c.json({
+        code: 0,
+        msg: 'Success',
+        data: data.playlist
     })
 })
 

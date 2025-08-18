@@ -1,8 +1,10 @@
-import { queryPlaylistByPlaylistId } from "../../db/playlist";
+import { queryPlaylistByPlaylistId, queryPlaylistItemsByPlaylistId, queryUserPlaylistListByUserId } from "../../db/playlist";
 import prisma from "../../db/prisma.client";
 import { FeedItem } from "../../models/feeds";
+import { UserPlaylistDto, UserPlaylistItemDto } from "../../models/playlist";
 import { generateFeedItemId, generatePlaylistId, generatePlaylistItemId } from "../../utils/common";
 import { getPodcastEpisodeInfo } from "../../utils/itunes";
+import { Userinfo } from "../user/types";
 
 export async function createPlaylist(userId: string, playlistName: string, description: string): Promise<String> {
     try {
@@ -20,6 +22,13 @@ export async function createPlaylist(userId: string, playlistName: string, descr
     }
 
     return 'Done'
+}
+
+export async function getUserPlaylistList(userId: string, limit: string, offset: string): Promise<UserPlaylistDto[]> {
+    const limitInt = parseInt(limit)
+    const offsetInt = parseInt(offset)
+    const resultDtos = await queryUserPlaylistListByUserId(userId, offsetInt, limitInt)
+    return resultDtos
 }
 
 export async function addPodcastToPlaylist(playlistId: string, channelId: string, source: string, guid: string): Promise<String> {
@@ -73,4 +82,45 @@ export async function addPodcastToPlaylist(playlistId: string, channelId: string
     }
 
     return 'Done'
+}
+
+export async function getPlaylistPodcastList(userId: string, playlistId: string, limit: string, offset: string): Promise<{ userInfo: Userinfo, playlist: UserPlaylistItemDto[]}> {
+    const playlistInfoResult = await prisma.user_playlist.findFirst({
+        where: {
+            id: playlistId
+        }
+    })
+
+    if (!playlistInfoResult || playlistInfoResult.user_id !== userId) {
+        throw new Error('Playlist not found')
+    }
+
+    const userInfoResult = await prisma.user_info.findFirst({
+        where: {
+            id: playlistInfoResult?.user_id
+        }
+    })
+
+    if (!userInfoResult) {
+        throw new Error('User not found')
+    }
+
+    const userInfo: Userinfo = {
+        userId: userInfoResult?.id,
+        nickname: userInfoResult?.nickname || '',
+        email: userInfoResult?.email || '',
+        phone: userInfoResult?.phone || '',
+        avatar: userInfoResult?.avatar || '',
+        regDate: userInfoResult?.reg_date || new Date(),
+        updateDate: userInfoResult.update_date || new Date(),
+        password: '',
+        telegramId: userInfoResult?.telegram_id || ''
+    }
+
+    const playlist = await queryPlaylistItemsByPlaylistId(playlistId)
+
+    return {
+        userInfo,
+        playlist
+    }
 }
