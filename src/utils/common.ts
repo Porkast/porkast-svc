@@ -30,3 +30,8 @@ export const getNickname = (email: string, nickname: string): string => {
     }
     return nickname
 }
+
+export const generatePlaylistId = async (name: string, userId: string): Promise<string> => {
+    const uniqueId = uuidv5(name + userId, uuidv5.DNS);
+    return uniqueId
+}
