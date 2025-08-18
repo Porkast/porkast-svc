@@ -35,3 +35,8 @@ export const generatePlaylistId = async (name: string, userId: string): Promise<
     const uniqueId = uuidv5(name + userId, uuidv5.DNS);
     return uniqueId
 }
+
+export const generatePlaylistItemId = async (playlistId: string, itemId: string): Promise<string> => {
+    const uniqueId = uuidv5(playlistId + itemId, uuidv5.DNS);
+    return uniqueId
+}

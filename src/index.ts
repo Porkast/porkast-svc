@@ -23,5 +23,6 @@ app.route('/api/playlist', playlistRoute)
 
 InitTelegramBot()
 IniteBakerJobs()
+console.log(app.routes)
 
 export default app
