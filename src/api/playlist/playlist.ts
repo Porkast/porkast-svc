@@ -48,6 +48,7 @@ export async function addPodcastToPlaylist(playlistId: string, channelId: string
         const message = 'Podcast Episode not found'
         throw new Error(message)
     }
+    // TODO: store episode info to db
 
     let feedItem: FeedItem = itemInfoResp.episode
     feedItem.Id = await generateFeedItemId(feedItem.FeedLink, feedItem.Title)
