@@ -1,5 +1,5 @@
 import { Userinfo as UserInfo, UserSyncRequestData, UserSyncSchema } from "./types";
-import prisma from "../db/prisma.client";
+import prisma from "../../db/prisma.client";
 import { Prisma } from "@prisma/client";
 
 export async function syncUserData(userData: UserSyncRequestData) {

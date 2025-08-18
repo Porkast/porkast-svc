@@ -4,7 +4,7 @@ import teleBot from './telegram/bot.hook'
 import { IniteBakerJobs } from './jobs/job_register'
 import { marked } from 'marked'
 import { InitTelegramBot } from './telegram/bot.setup'
-import { userRouter } from './api/route'
+import { userRouter } from './api/user/route'
 
 const app = new Hono()
 app.use("/", cors({ origin: "*" }))
