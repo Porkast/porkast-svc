@@ -1,0 +1,34 @@
+
+export type UserListenLaterDto = {
+    id: string;
+    guid: string;
+    channel_id: string;
+    feed_id: string;
+    title: string;
+    highlightTitle: string;
+    link: string;
+    pub_date: string;
+    author: string;
+    input_date: string;
+    image_url: string;
+    enclosure_url: string;
+    enclosure_type: string;
+    enclosure_length: string;
+    duration: string;
+    episode: string;
+    explicit: string;
+    season: string;
+    episodeType: string;
+    description: string;
+    text_description: string;
+    channel_image_url: string;
+    channel_title: string;
+    highlightChannelTitle: string;
+    feed_link: string;
+    count: number;
+    tookTime: number;
+    hasThumbnail: boolean;
+    source: string;
+    country: string;
+    reg_date: string;
+};

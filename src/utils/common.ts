@@ -1,4 +1,5 @@
 import { v5 as uuidv5 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 
 export const convertMillsTimeToDuration = (mills: number): string => {
     // Check if the duration is in the thousands digits
@@ -38,5 +39,10 @@ export const generatePlaylistId = async (name: string, userId: string): Promise<
 
 export const generatePlaylistItemId = async (playlistId: string, itemId: string): Promise<string> => {
     const uniqueId = uuidv5(playlistId + itemId, uuidv5.DNS);
+    return uniqueId
+}
+
+export const generateID = async (): Promise<string> => {
+    const uniqueId = uuidv4();
     return uniqueId
 }
