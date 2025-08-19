@@ -49,7 +49,7 @@ export async function queryUserPlaylistListByUserId(userId: string, offset: numb
         resultDtos.push({
             Id: result.id,
             PlaylistName: result.playlist_name || '',
-            Description: String(result.description) || '',
+            Description: result.description ? Buffer.from(result.description).toString('ascii') : '',
             UserId: result.user_id || '',
             Status: result.status || 0,
             CreatorId: result.creator_id || '',

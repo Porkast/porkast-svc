@@ -1,3 +1,4 @@
+import { createOrUpdateFeedItem } from "../../db/feedItem";
 import { queryPlaylistByPlaylistId, queryPlaylistItemsByPlaylistId, queryUserPlaylistListByUserId } from "../../db/playlist";
 import prisma from "../../db/prisma.client";
 import { FeedItem } from "../../models/feeds";
@@ -48,7 +49,6 @@ export async function addPodcastToPlaylist(playlistId: string, channelId: string
         const message = 'Podcast Episode not found'
         throw new Error(message)
     }
-    // TODO: store episode info to db
 
     let feedItem: FeedItem = itemInfoResp.episode
     feedItem.Id = await generateFeedItemId(feedItem.FeedLink, feedItem.Title)
@@ -65,6 +65,12 @@ export async function addPodcastToPlaylist(playlistId: string, channelId: string
         return 'Already exists'
     } else {
         try {
+            await createOrUpdateFeedItem(feedItem)
+        } catch (error) {
+            console.error('store feed item for playlist error: ', error)
+            throw new Error('Something went wrong')
+        }
+        try {
             await prisma.user_playlist_item.create({
                 data: {
                     id: playListeItemId,
@@ -77,7 +83,7 @@ export async function addPodcastToPlaylist(playlistId: string, channelId: string
             })
         } catch (error) {
             const message = 'Something went wrong'
-            console.log(message, error)
+            console.log('add podcast to playlist error: ', error)
             throw new Error(message)
         }
     }
