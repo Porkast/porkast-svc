@@ -1,4 +1,4 @@
-import { createOrUpdateFeedItem } from "../../db/feedItem";
+import { createOrUpdateFeedItem } from "../../db/feed_item";
 import { queryPlaylistByPlaylistId, queryPlaylistItemsByPlaylistId, queryUserPlaylistListByUserId } from "../../db/playlist";
 import prisma from "../../db/prisma.client";
 import { FeedItem } from "../../models/feeds";

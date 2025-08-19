@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { FeedItem } from "../models/feeds";
-import prisma from "../db/prisma.client";
+import prisma from "./prisma.client";
 
 
 export async function createOrUpdateFeedItem(feedItem: FeedItem) {
