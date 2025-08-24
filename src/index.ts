@@ -40,8 +40,14 @@ app.route('/api/rss', rssRoute)
 InitTelegramBot()
 IniteBakerJobs()
 
+const routeMap: Map<string, string> = new Map()
 app.routes.forEach((route) => {
-  const routeInfo = `Method: ${route.method}, Path: ${route.path}`
-  console.log(routeInfo)
+  routeMap.set(route.path, route.method)
 });
+
+console.log('======== Routes ========')
+routeMap.forEach((method, path) => {
+  console.log(`${method}: ${path}`)
+})
+console.log('======== Routes ========')
 export default app
