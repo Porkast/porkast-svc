@@ -5,18 +5,25 @@
     "start": "NODE_ENV=production bun run src/index.ts"
   },
   "dependencies": {
+    "@hono/zod-validator": "^0.7.2",
     "@prisma/client": "^6.12.0",
     "@types/hogan.js": "^3.0.5",
     "cronbake": "^0.1.2",
     "hogan.js": "^3.0.2",
     "hono": "^4.8.9",
     "marked": "^16.1.1",
+    "podcast": "^2.0.1",
     "prisma": "^6.12.0",
     "resend": "^4.7.0",
-    "uuid": "^11.1.0"
+    "rss-parser": "^3.13.0",
+    "uuid": "^11.1.0",
+    "zod": "^4.0.17"
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/marked": "^6.0.0"
+    "@types/jest": "^30.0.0",
+    "@types/marked": "^6.0.0",
+    "jest": "^30.0.5",
+    "ts-jest": "^29.4.1"
   }
 }

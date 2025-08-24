@@ -1,11 +1,17 @@
 import { Hono } from 'hono'
+import { cors } from 'hono/cors'
 import teleBot from './telegram/bot.hook'
 import { IniteBakerJobs } from './jobs/job_register'
 import { marked } from 'marked'
 import { InitTelegramBot } from './telegram/bot.setup'
+import { userRouter } from './api/user/route'
+import { subscribeRouter } from './api/subscribe/route'
+import { playlistRoute } from './api/playlist/route'
+import { listenLaterRoute } from './api/listenlater/route'
+import { rssRoute } from './api/rss/route'
 
 const app = new Hono()
-
+app.use("/", cors({ origin: "*" }))
 app.get('/', async (c) => {
   const readme = await Bun.file('./README.md').text()
   const readmeHtml = marked.parse(readme)
@@ -13,8 +19,17 @@ app.get('/', async (c) => {
 })
 
 app.route('/telegram', teleBot)
+app.route('/api/user', userRouter)
+app.route('/api/subscribe', subscribeRouter)
+app.route('/api/playlist', playlistRoute)
+app.route('/api/listenlater', listenLaterRoute)
+app.route('/api/rss', rssRoute)
 
 InitTelegramBot()
 IniteBakerJobs()
 
+app.routes.forEach((route) => {
+  const routeInfo = `Method: ${route.method}, Path: ${route.path}`
+  console.log(routeInfo)
+});
 export default app

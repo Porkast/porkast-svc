@@ -1,8 +1,8 @@
 import { Prisma } from "@prisma/client"
-import { FeedItem } from "../models/feeds"
+import { FeedChannel, FeedItem } from "../models/feeds"
 import { convertMillsTimeToDuration, generateFeedItemId } from "./common"
-import { iTunesResponse } from "../models/itunes"
-
+import { iTunesResponse, PodcastFeed, PodcastItem } from "../models/itunes"
+import Parser = require("rss-parser")
 
 
 export const searchPodcastEpisodeFromItunes = async (q: string, entity: string, country: string, excludeFeedId: string, offset: number, limit: number, totalCount: number): Promise<FeedItem[]> => {
@@ -125,4 +125,109 @@ export const buildFeedItemAndKeywordInputList = async (keyword: string, country:
         feedItemList: feedItemCreateInputList,
         keywordSubscriptionList: keywordSubscriptionInputList
     }
+}
+
+export const getPodcastEpisodeInfo = async (podcastId: string, episodeId: string): Promise<{ podcast: FeedChannel, episode: FeedItem }> => {
+    const res = await fetch(`https://itunes.apple.com/lookup?id=${podcastId}&entity=podcast`)
+    const jsonResp = await res.json()
+    const podcastInfo = jsonResp.results[0]
+    const feedLink = podcastInfo.feedUrl
+    const rss = await parsePodcastRSS(feedLink);
+    const episodeInfo = buildFeedItemModel(rss, feedLink, episodeId, podcastId);
+    var channelInfo: FeedChannel = buildFeedChannelModel(rss, feedLink, podcastId);
+
+    return {
+        podcast: channelInfo,
+        episode: episodeInfo
+    }
+}
+
+const parsePodcastRSS = async (feedUrl: string): Promise<PodcastFeed & Parser.Output<PodcastItem>> => {
+    const parser: Parser<PodcastFeed, PodcastItem> = new Parser();
+    const rssResp = await fetch(feedUrl);
+    const rssStr = await rssResp.text();
+    const feed = await parser.parseString(rssStr);
+    return feed
+}
+
+const buildFeedItemModel = (rssFeed: PodcastFeed & Parser.Output<PodcastItem>, feedLink: string, episodeId: string, podcastId: string): FeedItem => {
+    const rssChannelInfo = rssFeed;
+    const rssItemList = rssFeed.items
+    const targetItem = rssItemList.find(item => {
+        if (encodeURIComponent(item.guid) === episodeId || item.guid === episodeId) {
+            return true
+        }
+    })
+    // fill episode info with rss data 
+    const formatedPubDate = new Date(targetItem?.pubDate || '').toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+    var formaedDuration = '';
+    // if duration contain : then ignore it 
+    const durationStr = String(targetItem?.itunes.duration)
+    if (durationStr.includes(':')) {
+        formaedDuration = durationStr
+    } else {
+        const durationInt = parseInt(durationStr || '0')
+        formaedDuration = convertMillsTimeToDuration(durationInt)
+    }
+    var episodeInfo: FeedItem = {
+        Id: episodeId,
+        ChannelId: podcastId,
+        Title: targetItem?.title || '',
+        HighlightTitle: targetItem?.title || '',
+        Link: targetItem?.link || '',
+        PubDate: formatedPubDate,
+        Author: rssChannelInfo.itunes?.author || targetItem?.itunesAuthor || rssChannelInfo.author || '',
+        InputDate: new Date(targetItem?.pubDate || ''),
+        ImageUrl: targetItem?.itunesImage || rssChannelInfo.itunes?.image || rssChannelInfo.imageUrl || '',
+        EnclosureUrl: targetItem?.enclosure?.url || '',
+        EnclosureType: targetItem?.enclosure?.type || '',
+        EnclosureLength: String(targetItem?.enclosure?.length || ''),
+        Duration: formaedDuration,
+        Episode: String(targetItem?.itunesEpisode || ''),
+        Explicit: String(targetItem?.itunesExplicit || false),
+        Season: String(targetItem?.itunesSeason || ''),
+        EpisodeType: String(targetItem?.itunesEpisodeType || ''),
+        Description: targetItem?.description || targetItem?.content || "",
+        TextDescription: targetItem?.description || targetItem?.contentSnippet || "",
+        ChannelImageUrl: rssChannelInfo.itunesImage || rssChannelInfo.imageUrl || '',
+        ChannelTitle: rssChannelInfo.title,
+        HighlightChannelTitle: rssChannelInfo.title,
+        FeedLink: feedLink,
+        Count: 0,
+        TookTime: 0,
+        HasThumbnail: false,
+        FeedId: podcastId,
+        GUID: episodeId,
+        Source: "itunes",
+        ExcludeFeedId: "",
+        Country: ""
+    }
+
+    return episodeInfo
+}
+
+const buildFeedChannelModel = (rssFeed: PodcastFeed & Parser.Output<PodcastItem>, feedLink: string, podcastId: string): FeedChannel => {
+    const rssChannelInfo = rssFeed;
+    var channelInfo: FeedChannel = {
+        Id: podcastId,
+        Title: rssChannelInfo.title,
+        ChannelDesc: rssChannelInfo.description || '',
+        TextChannelDesc: rssChannelInfo.description || '',
+        ImageUrl: rssChannelInfo.itunes?.image || rssChannelInfo.itunesImage || '',
+        Link: rssChannelInfo.link || '',
+        FeedLink: feedLink,
+        FeedType: rssChannelInfo.itunesType || '',
+        Categories: rssChannelInfo.categories || [],
+        Author: rssChannelInfo.itunes.author || rssChannelInfo.author || rssChannelInfo.itunesAuthor || '',
+        OwnerName: rssChannelInfo.itunesOwner?.name || rssChannelInfo.itunes.owner.name || '',
+        OwnerEmail: rssChannelInfo.itunesOwner?.email || rssChannelInfo.itunes.owner.email || '',
+        Items: [],
+        Count: rssChannelInfo.items.length,
+        Copyright: rssChannelInfo.copyright || '',
+        Language: rssChannelInfo.language || '',
+        TookTime: 0,
+        HasThumbnail: false
+    };
+
+    return channelInfo
 }
