@@ -13,7 +13,7 @@ export const UserSyncSchema = z.object({
 
 export type UserSyncRequestData = z.infer<typeof UserSyncSchema>
 
-export type Userinfo = {
+export type UserInfo = {
     userId: string,
     telegramId: string,
     nickname: string,

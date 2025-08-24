@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test';
 import { syncUserData, getUserInfoByTelegramId } from './user';
 import prisma from '../../db/prisma.client';
-import type { UserSyncRequestData, Userinfo } from './types';
+import type { UserSyncRequestData, UserInfo } from './types';
 
 // Mock Prisma client
 const prismaMock = {

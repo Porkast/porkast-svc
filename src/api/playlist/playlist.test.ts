@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test';
 import { createPlaylist, getPlaylistPodcastList } from './playlist';
 import { UserPlaylistItemDto } from '../../models/playlist';
-import { Userinfo } from '../user/types';
+import { UserInfo } from '../user/types';
 
 const prismaMock = {
     user_playlist: {
@@ -56,7 +56,7 @@ describe('getPlaylistPodcastList()', () => {
         playlistItemsMock.mockReset();
     });
 
-    const mockUserInfo: Userinfo = {
+    const mockUserInfo: UserInfo = {
         userId: '123',
         nickname: 'testuser',
         email: 'test@example.com',

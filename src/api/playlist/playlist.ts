@@ -5,7 +5,7 @@ import { FeedItem } from "../../models/feeds";
 import { UserPlaylistDto, UserPlaylistItemDto } from "../../models/playlist";
 import { generateFeedItemId, generatePlaylistId, generatePlaylistItemId } from "../../utils/common";
 import { getPodcastEpisodeInfo } from "../../utils/itunes";
-import { Userinfo } from "../user/types";
+import { UserInfo } from "../user/types";
 
 export async function createPlaylist(userId: string, playlistName: string, description: string): Promise<String> {
     try {
@@ -91,7 +91,7 @@ export async function addPodcastToPlaylist(playlistId: string, channelId: string
     return 'Done'
 }
 
-export async function getPlaylistPodcastList(userId: string, playlistId: string, limit: string, offset: string): Promise<{ userInfo: Userinfo, playlist: UserPlaylistItemDto[]}> {
+export async function getPlaylistPodcastList(userId: string, playlistId: string, limit: string, offset: string): Promise<{ userInfo: UserInfo, playlist: UserPlaylistItemDto[]}> {
     const playlistInfoResult = await prisma.user_playlist.findFirst({
         where: {
             id: playlistId
@@ -112,7 +112,7 @@ export async function getPlaylistPodcastList(userId: string, playlistId: string,
         throw new Error('User not found')
     }
 
-    const userInfo: Userinfo = {
+    const userInfo: UserInfo = {
         userId: userInfoResult?.id,
         nickname: userInfoResult?.nickname || '',
         email: userInfoResult?.email || '',

@@ -1,4 +1,4 @@
-import { Userinfo as UserInfo, UserSyncRequestData, UserSyncSchema } from "./types";
+import { UserInfo as UserInfo, UserSyncRequestData, UserSyncSchema } from "./types";
 import prisma from "../../db/prisma.client";
 import { Prisma } from "@prisma/client";
 
@@ -64,6 +64,8 @@ export async function getUserInfoByTelegramId(telegramId: string): Promise<UserI
         email: userInfo?.email || "",
         phone: userInfo?.phone || "",
         avatar: userInfo?.avatar || "",
+        regDate: userInfo?.reg_date || new Date(),
+        updateDate: userInfo?.update_date || new Date()
     }
 
     return userInfoData

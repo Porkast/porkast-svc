@@ -1,4 +1,4 @@
-import { Userinfo } from "../api/user/types";
+import { UserInfo } from "../api/user/types";
 
 export type UserPlaylistEntity = {
     id: string
@@ -51,7 +51,7 @@ export type UserPlaylistDto = {
     CreatorId: string;
     OrigPlaylistId?: string;
     Count: number;
-    UserInfo?: Userinfo
+    UserInfo?: UserInfo
 }
 
 export type UserPlaylistItemDto = {

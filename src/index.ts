@@ -8,6 +8,7 @@ import { userRouter } from './api/user/route'
 import { subscribeRouter } from './api/subscribe/route'
 import { playlistRoute } from './api/playlist/route'
 import { listenLaterRoute } from './api/listenlater/route'
+import { rssRoute } from './api/rss/route'
 
 const app = new Hono()
 app.use("/", cors({ origin: "*" }))
@@ -22,6 +23,7 @@ app.route('/api/user', userRouter)
 app.route('/api/subscribe', subscribeRouter)
 app.route('/api/playlist', playlistRoute)
 app.route('/api/listenlater', listenLaterRoute)
+app.route('/api/rss', rssRoute)
 
 InitTelegramBot()
 IniteBakerJobs()
