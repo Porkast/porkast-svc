@@ -11,7 +11,19 @@ import { listenLaterRoute } from './api/listenlater/route'
 import { rssRoute } from './api/rss/route'
 
 const app = new Hono()
-app.use("/", cors({ origin: "*" }))
+app.use(
+  cors({
+    origin: '*',
+    allowHeaders: [
+      'X-Custom-Header',
+      'Upgrade-Insecure-Requests',
+      'Content-Type',
+      'Authorization'
+    ],
+    allowMethods: ['POST', 'GET', 'PUT', 'DELETE', 'OPTIONS'],
+    maxAge: 600,
+  })
+);
 app.get('/', async (c) => {
   const readme = await Bun.file('./README.md').text()
   const readmeHtml = marked.parse(readme)
