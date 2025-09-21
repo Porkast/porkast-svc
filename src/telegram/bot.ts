@@ -1,3 +1,4 @@
+import { FeedItem } from "../models/feeds";
 import { BOT_TOKEN } from "./bot.setup";
 import { BotCommands } from "./bot.types";
 
@@ -42,28 +43,38 @@ function escapeMarkdownV2(text: string): string {
     return escapedText;
 }
 
+function escapeHtml(text: string): string {
+    return text
+        .replace(/&/g, '&')
+        .replace(/</g, '<')
+        .replace(/>/g, '>')
+        .replace(/"/g, '"')
+        .replace(/'/g, '&#39;');
+}
+
 export function sendSubscriptionNewUpdateMessage(
     chatId: string,
     keyword: string,
     updateCount: number,
-    titleList: string[],
+    feedItemList: FeedItem[],
     link: string
 ) {
-    var titleStr = ''
-    for (let i = 0; i < titleList.length; i++) {
-        titleStr += `${i + 1}. ${titleList[i]}\n`
+    var updatePodcastInfoStr = ''
+    for (let i = 0; i < feedItemList.length; i++) {
+        const porkastItemUrl = process.env.PORKAST_WEB_BASE_URL + `/podcast/${feedItemList[i].ChannelId}/episode/${feedItemList[i].FeedId}`
+        const escapedTitle = escapeHtml(feedItemList[i].Title)
+        updatePodcastInfoStr += `${i + 1}. <a href="${porkastItemUrl}">${escapedTitle}</a>\n`
     }
     var message = `
 #${keyword} has been updated, ${updateCount} new episodes were added, click to check it out.
 
-${titleStr}
+${updatePodcastInfoStr}
 
 `
-    message = escapeMarkdownV2(message)
     const requestBody = {
         chat_id: chatId,
         text: message,
-        parse_mode: 'MarkdownV2',
+        parse_mode: 'HTML',
         reply_markup: {
             inline_keyboard: [
                 [

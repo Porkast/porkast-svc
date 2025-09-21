@@ -134,7 +134,7 @@ async function updateUserSubscriptionInfo(keyword: string, country: string, excl
             subject: "#" + keyword + " has new podcasts update"
         }
         if (userInfo.telegram_id !== null && userInfo.telegram_id !== undefined && userInfo.telegram_id !== '') {
-            sendSubscriptionNewUpdateMessage(userInfo.telegram_id, keyword, totalCount, ksList.map(ks => ks.Title), link)
+            sendSubscriptionNewUpdateMessage(userInfo.telegram_id, keyword, totalCount, ksList, link)
         }
         try {
             const sendNotificationEmail = async (latestId: number) => {
