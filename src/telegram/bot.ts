@@ -86,7 +86,7 @@ ${updatePodcastInfoStr}
     sendMessage(JSON.stringify(requestBody))
 }
 
-export async function sendCommonTestMessage(chatId: number, text: string) {
+export async function sendCommonTextMessage(chatId: number, text: string) {
     if (!BOT_TOKEN) {
         console.error('TELEGRAM_BOT_TOKEN is not set, cannot send message.');
         return;
