@@ -1,21 +1,16 @@
 import { SetBotCommands } from "./bot";
+import { startPolling } from "./bot.polling";
 
 export const BOT_TOKEN = process.env.TELE_BOT_TOKEN || '';
 export const BOT_WEBHOOK_URL = process.env.BOT_WEBHOOK_URL;
 
-if (!BOT_TOKEN || !BOT_WEBHOOK_URL) {
-    console.error('please check TELE_BOT_TOKEN and BOT_WEBHOOK_URL in .env');
-    process.exit(1);
-}
+async function setupWebhook() {
+    if (!BOT_TOKEN || !BOT_WEBHOOK_URL) {
+        console.error('Please check TELE_BOT_TOKEN and BOT_WEBHOOK_URL in .env for production');
+        process.exit(1);
+    }
 
-const webhookUrl = `https://api.telegram.org/bot${BOT_TOKEN}/setWebhook`;
-
-export function InitTelegramBot() {
-    SetupTelegramWebhook()
-    SetBotCommands()
-}
-
-async function SetupTelegramWebhook() {
+    const webhookUrl = `https://api.telegram.org/bot${BOT_TOKEN}/setWebhook`;
     try {
         const response = await fetch(webhookUrl, {
             method: 'POST',
@@ -36,5 +31,22 @@ async function SetupTelegramWebhook() {
         }
     } catch (error) {
         console.error('set Webhook error:', error);
+    }
+}
+
+export function InitTelegramBot() {
+    if (process.env.NODE_ENV === 'production') {
+        console.log('Setting up bot in webhook mode for production...');
+        setupWebhook();
+        SetBotCommands();
+    } else {
+        console.log('Setting up bot in polling mode for development...');
+        if (!BOT_TOKEN) {
+            console.error('Please check TELE_BOT_TOKEN in .env for development');
+            process.exit(1);
+        }
+        // In development, we don't want to block the main thread
+        startPolling().catch(err => console.error("Polling error:", err));
+        SetBotCommands();
     }
 }

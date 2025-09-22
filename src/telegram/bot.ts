@@ -160,3 +160,26 @@ export async function answerCallbackQuery(callbackQueryId: string, text: string 
         console.error('Error sending message:', error);
     }
 }
+
+export async function editMessage(body: string) {
+    if (!BOT_TOKEN) {
+        console.error('TELEGRAM_BOT_TOKEN is not set, cannot send message.');
+        return;
+    }
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`;
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: body
+        });
+        const data = await response.json();
+        if (!data.ok) {
+            console.error('Send message failed:', data.description);
+        }
+    } catch (error) {
+        console.error('Error sending message:', error);
+    }
+}

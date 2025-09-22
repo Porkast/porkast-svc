@@ -4,9 +4,9 @@ export interface BotCommand {
     description: string;
 }
 
-export const START_COMMAND = '/start';
-export const HELP_COMMAND = '/help';
-export const SUBSCRIBE_COMMAND = '/subscribe';
+export const START_COMMAND = 'start';
+export const HELP_COMMAND = 'help';
+export const SUBSCRIBE_COMMAND = 'subscribe';
 
 export const BotCommandsMap = new Map<string, BotCommand>([
     [START_COMMAND, { command: 'start', description: 'Welcome to Porkast' }],

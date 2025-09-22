@@ -1,7 +1,8 @@
 import { Hono } from "hono"
 import { zValidator } from '@hono/zod-validator';
 import { UserSyncRequestData, UserSyncSchema } from "./types";
-import { getUserInfoByTelegramId, syncUserData } from "./user";
+import { getUserInfoByTelegramId } from "../../db/user";
+import { syncUserData } from "./user";
 
 export const userRouter = new Hono()
 
