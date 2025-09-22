@@ -10,7 +10,7 @@ import { sendSubscriptionNewUpdateMessage } from "../telegram/bot";
 export async function updateUserSubscription() {
     const allUserSubs = await getAllUserSubscriptions();
     const updatePromises = allUserSubs.map(async (sub) => {
-         console.log('Update user subscription for user: ' + sub.UserId + ' ,keyword: ' + sub.Keyword + ' ,country: ' + sub.Country + ' ,excludeFeedIds: ' + sub.ExcludeFeedId + ' ,source: ' + sub.Source)
+        console.log('Update user subscription for user: ' + sub.UserId + ' ,keyword: ' + sub.Keyword + ' ,country: ' + sub.Country + ' ,excludeFeedIds: ' + sub.ExcludeFeedId + ' ,source: ' + sub.Source)
         const keyword = sub.Keyword
         const country = sub.Country
         const excludeFeedIds = sub.ExcludeFeedId
