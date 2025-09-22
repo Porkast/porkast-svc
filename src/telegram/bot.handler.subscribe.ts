@@ -156,7 +156,8 @@ export function renderSubscribeDetailKeyboard(feedItems: FeedItem[], keyword: st
     feedItems.forEach((item, index) => {
         const itemNumber = offset + index + 1;
         const title = item.Title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        html += `${itemNumber}. <a href="${item.Link}">${title}</a>\n`;
+        const porkastItemLink = `${process.env.PORKAST_WEB_BASE_URL}/podcast/${item.FeedId}/episode/${item.GUID}`;
+        html += `${itemNumber}. <a href="${porkastItemLink}">${title}</a>\n`;
     });
 
     const keyboard: InlineKeyboardButton[][] = [];

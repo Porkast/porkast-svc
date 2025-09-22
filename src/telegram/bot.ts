@@ -61,7 +61,7 @@ export function sendSubscriptionNewUpdateMessage(
 ) {
     var updatePodcastInfoStr = ''
     for (let i = 0; i < feedItemList.length; i++) {
-        const porkastItemUrl = process.env.PORKAST_WEB_BASE_URL + `/podcast/${feedItemList[i].ChannelId}/episode/${feedItemList[i].FeedId}`
+        const porkastItemUrl = process.env.PORKAST_WEB_BASE_URL + `/podcast/${feedItemList[i].FeedId}/episode/${feedItemList[i].GUID}`
         const escapedTitle = escapeHtml(feedItemList[i].Title)
         updatePodcastInfoStr += `${i + 1}. <a href="${porkastItemUrl}">${escapedTitle}</a>\n`
     }
