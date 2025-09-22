@@ -1,9 +1,15 @@
 import { sendCommonTextMessage, sendMessage, editMessage } from './bot';
-import { searchPodcastEpisodeFromItunes } from '../utils/itunes';
-import { FeedItem } from '../models/feeds';
-import { InlineKeyboardButton } from './types';
+import { searchPodcastEpisodeFromItunes, getPodcastEpisodeInfo } from '../utils/itunes';
+import { FeedItem, FeedChannel } from '../models/feeds';
+import { InlineKeyboardButton, RenderedDetail } from './types';
+import { cleanHtmlForTelegram } from './bot.handler';
 
 const SEARCH_PAGE_SIZE = 10;
+
+// Temporary storage for search result GUIDs to keep callback_data short
+const searchResultMap = new Map<string, {feedId: string, guid: string}>();
+
+
 
 export async function handleSearch(chatId: number, keyword: string, page: number = 0, messageId?: number): Promise<void> {
     try {
@@ -49,9 +55,13 @@ export function renderSearchResultsKeyboard(feedItems: FeedItem[], keyword: stri
     const keyboard: InlineKeyboardButton[][] = [];
 
     for (const item of feedItems) {
+        // Generate short ID and store mapping
+        const shortId = crypto.randomUUID().substring(0, 8);
+        searchResultMap.set(shortId, { feedId: String(item.FeedId), guid: item.GUID });
+
         keyboard.push([{
             text: item.Title,
-            callback_data: `search_detail:search:${item.FeedId}:${keyword}:${currentPage}`
+            callback_data: `search_detail:search:${shortId}:${keyword}:${currentPage}`
         }]);
     }
 
@@ -75,6 +85,21 @@ export function renderSearchResultsKeyboard(feedItems: FeedItem[], keyword: stri
     return keyboard;
 }
 
+export function renderSearchResultItemKeyboard(episode: FeedItem, podcast: FeedChannel, keyword: string, currentPage: number): RenderedDetail {
+    const html = `<b>${episode.Title}</b>\n\n` +
+        `<b>Podcast:</b> ${podcast.Title}\n` +
+        `<b>Duration:</b> ${episode.Duration}\n` +
+        `<b>Published:</b> ${episode.PubDate}\n\n` +
+        `<b>Description:</b>\n${episode.Description}`;
+
+    const keyboard: InlineKeyboardButton[][] = [[{
+        text: 'Back to Search Results',
+        callback_data: `search_back:search:${keyword}:${currentPage}`
+    }]];
+
+    return { text: html, keyboard: keyboard };
+}
+
 export async function handleSearchCallbackQuery(chatId: number, messageId: number, data: string): Promise<void> {
     if (!data.startsWith('search_')) return;
 
@@ -89,7 +114,39 @@ export async function handleSearchCallbackQuery(chatId: number, messageId: numbe
         const newPage = action === 'search_prev' ? currentPage - 1 : currentPage + 1;
         await handleSearch(chatId, keyword, newPage, messageId);
     } else if (action === 'search_detail') {
-        // Placeholder for detail view - to be implemented
-        await sendCommonTextMessage(chatId, 'Episode detail view coming soon!');
+        const [shortId, keyword, currentPageStr] = payload;
+        const mapping = searchResultMap.get(shortId);
+
+        if (!mapping) {
+            await sendCommonTextMessage(chatId, 'Episode details not found. Please search again.');
+            return;
+        }
+
+        try {
+            const { podcast, episode } = await getPodcastEpisodeInfo(mapping.feedId, mapping.guid);
+            const { text, keyboard } = renderSearchResultItemKeyboard(episode, podcast, keyword, parseInt(currentPageStr));
+
+            const editBody = {
+                chat_id: chatId,
+                message_id: messageId,
+                text: cleanHtmlForTelegram(text),
+                parse_mode: 'HTML',
+                reply_markup: {
+                    inline_keyboard: keyboard
+                }
+            };
+
+            await editMessage(JSON.stringify(editBody));
+        } catch (error) {
+            console.error('Error fetching episode details:', error);
+            await sendCommonTextMessage(chatId, 'Error loading episode details.');
+        } finally {
+            // Clean up the mapping to prevent memory leaks
+            searchResultMap.delete(shortId);
+        }
+    } else if (action === 'search_back') {
+        const [keyword, currentPageStr] = payload;
+        const currentPage = parseInt(currentPageStr);
+        await handleSearch(chatId, keyword, currentPage, messageId);
     }
 }

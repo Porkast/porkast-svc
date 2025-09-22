@@ -52,3 +52,38 @@ export async function processUpdate(update: any) {
         }
     }
 }
+
+// Clean HTML content for Telegram compatibility
+export function cleanHtmlForTelegram(html: string): string {
+    if (!html) return '';
+
+    // Remove unsupported tags and their content
+    let cleaned = html
+        .replace(/<img[^>]*>/gi, '') // Remove images
+        .replace(/<br[^>]*>/gi, '\n') // Convert breaks to newlines
+        .replace(/<\/?p[^>]*>/gi, '\n') // Convert paragraphs to newlines
+        .replace(/<strong[^>]*>/gi, '<b>') // Convert strong to bold
+        .replace(/<\/strong>/gi, '</b>') // Convert closing strong to bold
+        .replace(/<em[^>]*>/gi, '<i>') // Convert em to italic
+        .replace(/<\/em>/gi, '</i>') // Convert closing em to italic
+        .replace(/<[^>]*>/gi, ''); // Remove all remaining HTML tags
+
+    // Decode HTML entities
+    cleaned = cleaned
+        .replace(/</g, '<')
+        .replace(/>/g, '>')
+        .replace(/&/g, '&')
+        .replace(/"/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, ' ');
+
+    // Clean up excessive whitespace
+    cleaned = cleaned.replace(/\n\s*\n/g, '\n').trim();
+
+    // Truncate if too long (Telegram has message limits)
+    if (cleaned.length > 1000) {
+        cleaned = cleaned.substring(0, 1000) + '...';
+    }
+
+    return cleaned;
+}
