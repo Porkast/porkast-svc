@@ -245,7 +245,7 @@ export async function queryUserKeywordSubscriptionList(userId: string, offset: n
     return resultDtos
 }
 
-export async function queryKeywordSubscriptionFeedItemList(userId: string, keyword: string, source: string, country: string, excludeFeedId: string, offset: number, limit: number): Promise<FeedItem[]> {
+export async function queryKeywordSubscriptionFeedItemList(userId: string, keyword: string, source: string, country: string, excludeFeedId: string, offset: number, limit: number): Promise<[FeedItem[], number]> {
 
     const resultList: FeedItem[] = []
 
@@ -308,7 +308,7 @@ export async function queryKeywordSubscriptionFeedItemList(userId: string, keywo
         })
     }
 
-    return resultList
+    return [resultList, totalCount]
 }
 
 

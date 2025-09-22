@@ -61,7 +61,7 @@ export function sendSubscriptionNewUpdateMessage(
 ) {
     var updatePodcastInfoStr = ''
     for (let i = 0; i < feedItemList.length; i++) {
-        const porkastItemUrl = process.env.PORKAST_WEB_BASE_URL + `/podcast/${feedItemList[i].ChannelId}/episode/${feedItemList[i].FeedId}`
+        const porkastItemUrl = process.env.PORKAST_WEB_BASE_URL + `/podcast/${feedItemList[i].FeedId}/episode/${feedItemList[i].GUID}`
         const escapedTitle = escapeHtml(feedItemList[i].Title)
         updatePodcastInfoStr += `${i + 1}. <a href="${porkastItemUrl}">${escapedTitle}</a>\n`
     }
@@ -86,7 +86,7 @@ ${updatePodcastInfoStr}
     sendMessage(JSON.stringify(requestBody))
 }
 
-export async function sendCommonTestMessage(chatId: number, text: string) {
+export async function sendCommonTextMessage(chatId: number, text: string) {
     if (!BOT_TOKEN) {
         console.error('TELEGRAM_BOT_TOKEN is not set, cannot send message.');
         return;
@@ -151,6 +151,29 @@ export async function answerCallbackQuery(callbackQueryId: string, text: string 
                 callback_query_id: callbackQueryId,
                 text: text,
             }),
+        });
+        const data = await response.json();
+        if (!data.ok) {
+            console.error('Send message failed:', data.description);
+        }
+    } catch (error) {
+        console.error('Error sending message:', error);
+    }
+}
+
+export async function editMessage(body: string) {
+    if (!BOT_TOKEN) {
+        console.error('TELEGRAM_BOT_TOKEN is not set, cannot send message.');
+        return;
+    }
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`;
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: body
         });
         const data = await response.json();
         if (!data.ok) {

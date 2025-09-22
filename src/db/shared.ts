@@ -189,7 +189,7 @@ export const generateSubscriptionRSS = async (userId: string, keyword: string): 
 
     const decodeKeyword = decodeURIComponent(keyword)
     
-    const subsciptionItemList = await queryKeywordSubscriptionFeedItemList(userId, keyword, subsciptionInfo.Source, subsciptionInfo.Country, subsciptionInfo.ExcludeFeedId, 0, 200)
+    const [subsciptionItemList, totalCount] = await queryKeywordSubscriptionFeedItemList(userId, keyword, subsciptionInfo.Source, subsciptionInfo.Country, subsciptionInfo.ExcludeFeedId, 0, 200)
 
     const feed = new Podcast({
         title: `${subsciptionInfo.Keyword}`,
