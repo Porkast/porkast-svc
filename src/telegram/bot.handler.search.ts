@@ -1,4 +1,4 @@
-import { sendCommonTextMessage, sendMessage, editMessage } from './bot';
+import { sendCommonTextMessage, sendMessage, editMessage, sendAudio } from './bot';
 import { searchPodcastEpisodeFromItunes, getPodcastEpisodeInfo } from '../utils/itunes';
 import { FeedItem, FeedChannel } from '../models/feeds';
 import { InlineKeyboardButton, RenderedDetail } from './types';
@@ -11,7 +11,7 @@ const SEARCH_PAGE_SIZE = 10;
 // Temporary storage for search result GUIDs to keep callback_data short
 const searchResultMap = new Map<string, {feedId: string, guid: string}>();
 // Temporary storage for audio URLs to keep callback_data short
-const audioUrlMap = new Map<string, string>();
+const audioUrlMap = new Map<string, {url: string, title: string, podcast: string}>();
 
 
 export async function handleSearch(chatId: number, keyword: string, page: number = 0, messageId?: number): Promise<void> {
@@ -96,15 +96,16 @@ export function renderSearchResultsKeyboard(feedItems: FeedItem[], keyword: stri
 }
 
 export function renderSearchResultItemKeyboard(episode: FeedItem, podcast: FeedChannel, keyword: string, currentPage: number): RenderedDetail {
+    const description = cleanHtmlForTelegram(episode.Description);
     const html = `<b>${episode.Title}</b>\n\n` +
         `<b>Podcast:</b> ${podcast.Title}\n` +
         `<b>Duration:</b> ${episode.Duration}\n` +
         `<b>Published:</b> ${episode.PubDate}\n\n` +
-        `<b>Description:</b>\n${episode.Description}`;
+        `<b>Description:</b>\n${description}`;
 
     // Generate short ID for audio URL and store mapping
     const audioShortId = crypto.randomUUID().substring(0, 8);
-    audioUrlMap.set(audioShortId, episode.EnclosureUrl);
+    audioUrlMap.set(audioShortId, { url: episode.EnclosureUrl, title: episode.Title, podcast: podcast.Title });
 
     const keyboard: InlineKeyboardButton[][] = [
         [{
@@ -149,7 +150,7 @@ export async function handleSearchCallbackQuery(teleUserId : string, chatId: num
             const editBody = {
                 chat_id: chatId,
                 message_id: messageId,
-                text: cleanHtmlForTelegram(text),
+                text: text,
                 parse_mode: 'HTML',
                 reply_markup: {
                     inline_keyboard: keyboard
@@ -187,21 +188,24 @@ export async function handleSearchCallbackQuery(teleUserId : string, chatId: num
         }
     } else if (action === 'search_play') {
         const [audioShortId] = payload;
-        const audioUrl = audioUrlMap.get(audioShortId);
+        const audioInfo = audioUrlMap.get(audioShortId);
         
-        if (!audioUrl) {
+        if (!audioInfo) {
             await sendCommonTextMessage(chatId, 'Audio URL not found. Please try again.');
             return;
         }
 
         try {
-            // Send audio using Telegram's audio API
-            const audioBody = {
-                chat_id: chatId,
-                audio: audioUrl,
-                caption: '🎧 Now playing podcast episode'
-            };
-            await sendMessage(JSON.stringify(audioBody));
+            console.debug(`Attempting to play audio from URL: ${audioInfo.url}`);
+            
+            if (!audioInfo.url || audioInfo.url.trim() === '') {
+                await sendCommonTextMessage(chatId, 'Audio URL is empty. Cannot play episode.');
+                return;
+            }
+
+            // Send audio using Telegram's dedicated audio API
+            console.debug(`Sending audio to chat ${chatId} with URL: ${audioInfo.url} and title: ${audioInfo.title}`);
+            await sendAudio(chatId, audioInfo.url, audioInfo.title, audioInfo.podcast);
         } catch (error) {
             console.error('Error playing audio:', error);
             await sendCommonTextMessage(chatId, 'Error playing audio. The audio file may be unavailable.');
