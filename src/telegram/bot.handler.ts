@@ -2,6 +2,7 @@ import { sendCommonTextMessage } from './bot';
 import { handleSubscribeCommand, handleSubscribeCallbackQuery } from './bot.handler.subscribe';
 import { handleSearch, handleSearchCallbackQuery } from './bot.handler.search';
 import { HELP_COMMAND, START_COMMAND, SUBSCRIBE_COMMAND } from './bot.types';
+import { logger } from '../utils/logger';
 
 function handleCommand(command: string): string {
     switch (command) {
@@ -21,7 +22,7 @@ export async function processUpdate(update: any) {
         const userName = update.message.from.first_name || 'unknown user';
         const teleUserId = update.message.from.id.toString();
 
-        console.debug(`received message from ${userName} (${chatId}): "${text}"`);
+        logger.debug(`received message from ${userName} (${chatId}): "${text}"`);
 
         if (text && text.startsWith('/')) {
             const command = text.split(' ')[0].substring(1);
@@ -33,7 +34,7 @@ export async function processUpdate(update: any) {
             }
         } else if (text) {
             // Treat as search query
-            console.debug(`Received search query from ${userName} (${chatId}): "${text}"`);
+            logger.debug(`Received search query from ${userName} (${chatId}): "${text}"`);
             await handleSearch(chatId, text.trim(), 0);
         }
     } else if (update.callback_query) {
@@ -42,7 +43,7 @@ export async function processUpdate(update: any) {
         const messageId = update.callback_query.message.message_id;
         const teleUserId = update.callback_query.from.id.toString();
 
-        console.debug(`received callback query from ${teleUserId} (${chatId}): ${data}`);
+        logger.debug(`received callback query from ${teleUserId} (${chatId}): ${data}`);
         const dataParts = data.split(':');
         const commandType = dataParts[1];
         if (commandType === SUBSCRIBE_COMMAND) {

@@ -50,14 +50,14 @@ export async function updateUserSubscription(request: KeywordSubscribeRequestDat
             }
         }
 
-        console.error(error)
+        logger.error(error)
         throw error
     }
 
     try {
         await doSearchSubscription(keyword, country, source, excludeFeedId)
     } catch (error) {
-        console.error(error)
+        logger.error(error)
         return "Something went wrong, please try again later"
     }
 

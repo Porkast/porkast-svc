@@ -5,6 +5,7 @@ import { FeedItem } from "../../models/feeds";
 import { UserPlaylistDto, UserPlaylistItemDto } from "../../models/playlist";
 import { generateFeedItemId, generatePlaylistId, generatePlaylistItemId } from "../../utils/common";
 import { getPodcastEpisodeInfo } from "../../utils/itunes";
+import { logger } from "../../utils/logger";
 import { UserInfo } from "../user/types";
 
 export async function createPlaylist(userId: string, playlistName: string, description: string): Promise<String> {
@@ -18,7 +19,7 @@ export async function createPlaylist(userId: string, playlistName: string, descr
             }
         })
     } catch (error) {
-        console.error('create playlist error', error)
+        logger.error('create playlist error', error)
         return 'Something went wrong'
     }
 
@@ -67,7 +68,7 @@ export async function addPodcastToPlaylist(playlistId: string, channelId: string
         try {
             await createOrUpdateFeedItem(feedItem)
         } catch (error) {
-            console.error('store feed item for playlist error: ', error)
+            logger.error('store feed item for playlist error: ', error)
             throw new Error('Something went wrong')
         }
         try {
@@ -83,7 +84,7 @@ export async function addPodcastToPlaylist(playlistId: string, channelId: string
             })
         } catch (error) {
             const message = 'Something went wrong'
-            console.error('add podcast to playlist error: ', error)
+            logger.error('add podcast to playlist error: ', error)
             throw new Error(message)
         }
     }

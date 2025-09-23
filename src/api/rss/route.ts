@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { generateListenLaterRSSXml, generatePlaylistRSSXml, generateSubscriptionRSS } from "../../db/shared";
+import { logger } from "../../utils/logger";
 
 
 export const rssRoute = new Hono()
@@ -18,7 +19,7 @@ rssRoute.get('/listenlater/:userId', async (c) => {
             'Content-Type': 'application/rss+xml'
         });
     } catch (error) {
-        console.error(`generate listenlater rss with userId ${userId} error : `, error)
+        logger.error(`generate listenlater rss with userId ${userId} error : `, error)
         return c.json({
             code: 1,
             msg: 'Ops! Something went wrong'
@@ -47,7 +48,7 @@ rssRoute.get('playlist/:playlistId/:userId', async (c) => {
             'Content-Type': 'application/rss+xml'
         });
     } catch (error) {
-        console.error(`generate playlist rss with userId ${userId} and playlistId ${playlistId} error : `, error)
+        logger.error(`generate playlist rss with userId ${userId} and playlistId ${playlistId} error : `, error)
         return c.json({
             code: 1,
             msg: 'Ops! Something went wrong'
@@ -76,7 +77,7 @@ rssRoute.get('/subscription/:userId/:keyword', async (c) => {
             'Content-Type': 'application/rss+xml'
         });
     } catch (error) {
-        console.error(`generate subscription rss with userId ${userId} and keyword ${keyword} error : `, error)
+        logger.error(`generate subscription rss with userId ${userId} and keyword ${keyword} error : `, error)
         return c.json({
             code: 1,
             msg: 'Ops! Something went wrong'

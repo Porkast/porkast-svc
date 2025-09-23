@@ -5,6 +5,7 @@ import { InlineKeyboardButton, RenderedDetail } from './types';
 import { cleanHtmlForTelegram } from './bot.handler';
 import { doSearchSubscription, recoredUserKeywordSubscription as recordUserKeywordSubscription } from '../db/subscription';
 import { getUserInfoByTelegramId } from '../db/user';
+import { logger } from '../utils/logger';
 
 const SEARCH_PAGE_SIZE = 10;
 
@@ -21,7 +22,7 @@ export async function handleSearch(chatId: number, keyword: string, page: number
         const feedItems = await searchPodcastEpisodeFromItunes(keyword, 'podcastEpisode', 'US', '', offset, SEARCH_PAGE_SIZE, totalCount);
 
         if (feedItems.length === 0) {
-            console.debug(`No results found for "${keyword}"`);
+            logger.debug(`No results found for "${keyword}"`);
             await sendCommonTextMessage(chatId, `No results found for "${keyword}"`);
             return;
         }
@@ -41,15 +42,15 @@ export async function handleSearch(chatId: number, keyword: string, page: number
         };
 
         if (messageId) {
-            console.debug(`Editing message ${messageId} with requestBody ${JSON.stringify(requestBody)}`);
+            logger.debug(`Editing message ${messageId} with requestBody ${JSON.stringify(requestBody)}`);
             const editBody = { ...requestBody, message_id: messageId };
             await editMessage(JSON.stringify(editBody));
         } else {
-            console.debug(`Sending message ${messageId} with requestBody ${JSON.stringify(requestBody)}`);
+            logger.debug(`Sending message ${messageId} with requestBody ${JSON.stringify(requestBody)}`);
             await sendMessage(JSON.stringify(requestBody));
         }
     } catch (error) {
-        console.error('Error handling search:', error);
+        logger.error('Error handling search:', error);
         await sendCommonTextMessage(chatId, 'Error searching podcasts.');
     }
 }
@@ -159,7 +160,7 @@ export async function handleSearchCallbackQuery(teleUserId : string, chatId: num
 
             await editMessage(JSON.stringify(editBody));
         } catch (error) {
-            console.error('Error fetching episode details:', error);
+            logger.error('Error fetching episode details:', error);
             await sendCommonTextMessage(chatId, 'Error loading episode details.');
         } finally {
             // Clean up the mapping to prevent memory leaks
@@ -183,7 +184,7 @@ export async function handleSearchCallbackQuery(teleUserId : string, chatId: num
             }
             await sendCommonTextMessage(chatId, responseText);
         } catch (error) {
-            console.error('Error subscribing to search:', error);
+            logger.error('Error subscribing to search:', error);
             await sendCommonTextMessage(chatId, 'Error subscribing to search results.');
         }
     } else if (action === 'search_play') {
@@ -196,7 +197,7 @@ export async function handleSearchCallbackQuery(teleUserId : string, chatId: num
         }
 
         try {
-            console.debug(`Attempting to play audio from URL: ${audioInfo.url}`);
+            logger.debug(`Attempting to play audio from URL: ${audioInfo.url}`);
             
             if (!audioInfo.url || audioInfo.url.trim() === '') {
                 await sendCommonTextMessage(chatId, 'Audio URL is empty. Cannot play episode.');
@@ -204,10 +205,10 @@ export async function handleSearchCallbackQuery(teleUserId : string, chatId: num
             }
 
             // Send audio using Telegram's dedicated audio API
-            console.debug(`Sending audio to chat ${chatId} with URL: ${audioInfo.url} and title: ${audioInfo.title}`);
+            logger.debug(`Sending audio to chat ${chatId} with URL: ${audioInfo.url} and title: ${audioInfo.title}`);
             await sendAudio(chatId, audioInfo.url, audioInfo.title, audioInfo.podcast);
         } catch (error) {
-            console.error('Error playing audio:', error);
+            logger.error('Error playing audio:', error);
             await sendCommonTextMessage(chatId, 'Error playing audio. The audio file may be unavailable.');
         }
     }
