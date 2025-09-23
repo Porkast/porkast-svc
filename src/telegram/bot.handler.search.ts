@@ -3,6 +3,8 @@ import { searchPodcastEpisodeFromItunes, getPodcastEpisodeInfo } from '../utils/
 import { FeedItem, FeedChannel } from '../models/feeds';
 import { InlineKeyboardButton, RenderedDetail } from './types';
 import { cleanHtmlForTelegram } from './bot.handler';
+import { doSearchSubscription, recoredUserKeywordSubscription as recordUserKeywordSubscription } from '../db/subscription';
+import { getUserInfoByTelegramId } from '../db/user';
 
 const SEARCH_PAGE_SIZE = 10;
 
@@ -65,6 +67,13 @@ export function renderSearchResultsKeyboard(feedItems: FeedItem[], keyword: stri
         }]);
     }
 
+    // Add subscribe button above pagination
+    const subscribeRow: InlineKeyboardButton[] = [{
+        text: 'Subscribe to this search',
+        callback_data: `search_subscribe:search:${keyword}`
+    }];
+    keyboard.push(subscribeRow);
+
     const navRow: InlineKeyboardButton[] = [];
     if (currentPage > 0) {
         navRow.push({
@@ -100,7 +109,7 @@ export function renderSearchResultItemKeyboard(episode: FeedItem, podcast: FeedC
     return { text: html, keyboard: keyboard };
 }
 
-export async function handleSearchCallbackQuery(chatId: number, messageId: number, data: string): Promise<void> {
+export async function handleSearchCallbackQuery(teleUserId : string, chatId: number, messageId: number, data: string): Promise<void> {
     if (!data.startsWith('search_')) return;
 
     const parts = data.split(':');
@@ -148,5 +157,22 @@ export async function handleSearchCallbackQuery(chatId: number, messageId: numbe
         const [keyword, currentPageStr] = payload;
         const currentPage = parseInt(currentPageStr);
         await handleSearch(chatId, keyword, currentPage, messageId);
+    } else if (action === 'search_subscribe') {
+        const [keyword] = payload;
+        try {
+            const userInfo = await getUserInfoByTelegramId(teleUserId);
+            const result = await recordUserKeywordSubscription(userInfo.userId, keyword, 'itunes', 'US', '', 0);
+            let responseText = '';
+            if (!result) {
+                await doSearchSubscription(keyword, 'US', 'itunes', '');
+                responseText = `Successfully subscribed to "${keyword}"!`;
+            } else {
+                responseText = result
+            }
+            await sendCommonTextMessage(chatId, responseText);
+        } catch (error) {
+            console.error('Error subscribing to search:', error);
+            await sendCommonTextMessage(chatId, 'Error subscribing to search results.');
+        }
     }
 }
