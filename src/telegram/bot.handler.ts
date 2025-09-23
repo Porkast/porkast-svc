@@ -19,14 +19,14 @@ export async function processUpdate(update: any) {
         const chatId = update.message.chat.id;
         const text = update.message.text;
         const userName = update.message.from.first_name || 'unknown user';
-        const userId = update.message.from.id.toString();
+        const teleUserId = update.message.from.id.toString();
 
         console.debug(`received message from ${userName} (${chatId}): "${text}"`);
 
         if (text && text.startsWith('/')) {
             const command = text.split(' ')[0].substring(1);
             if (command === SUBSCRIBE_COMMAND) {
-                await handleSubscribeCommand(chatId, userId, 0);
+                await handleSubscribeCommand(chatId, teleUserId, 0);
             } else {
                 const responseText = handleCommand(command);
                 await sendCommonTextMessage(chatId, responseText);
@@ -48,7 +48,7 @@ export async function processUpdate(update: any) {
         if (commandType === SUBSCRIBE_COMMAND) {
             await handleSubscribeCallbackQuery(chatId, messageId, data, teleUserId);
         } else if (commandType === 'search') {
-            await handleSearchCallbackQuery(chatId, messageId, data);
+            await handleSearchCallbackQuery(teleUserId, chatId, messageId, data);
         }
     }
 }

@@ -18,7 +18,7 @@ export async function createPlaylist(userId: string, playlistName: string, descr
             }
         })
     } catch (error) {
-        console.log('create playlist error', error)
+        console.error('create playlist error', error)
         return 'Something went wrong'
     }
 
@@ -83,7 +83,7 @@ export async function addPodcastToPlaylist(playlistId: string, channelId: string
             })
         } catch (error) {
             const message = 'Something went wrong'
-            console.log('add podcast to playlist error: ', error)
+            console.error('add podcast to playlist error: ', error)
             throw new Error(message)
         }
     }

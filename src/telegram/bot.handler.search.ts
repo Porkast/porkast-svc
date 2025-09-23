@@ -1,14 +1,17 @@
-import { sendCommonTextMessage, sendMessage, editMessage } from './bot';
+import { sendCommonTextMessage, sendMessage, editMessage, sendAudio } from './bot';
 import { searchPodcastEpisodeFromItunes, getPodcastEpisodeInfo } from '../utils/itunes';
 import { FeedItem, FeedChannel } from '../models/feeds';
 import { InlineKeyboardButton, RenderedDetail } from './types';
 import { cleanHtmlForTelegram } from './bot.handler';
+import { doSearchSubscription, recoredUserKeywordSubscription as recordUserKeywordSubscription } from '../db/subscription';
+import { getUserInfoByTelegramId } from '../db/user';
 
 const SEARCH_PAGE_SIZE = 10;
 
 // Temporary storage for search result GUIDs to keep callback_data short
 const searchResultMap = new Map<string, {feedId: string, guid: string}>();
-
+// Temporary storage for audio URLs to keep callback_data short
+const audioUrlMap = new Map<string, {url: string, title: string, podcast: string}>();
 
 
 export async function handleSearch(chatId: number, keyword: string, page: number = 0, messageId?: number): Promise<void> {
@@ -65,6 +68,13 @@ export function renderSearchResultsKeyboard(feedItems: FeedItem[], keyword: stri
         }]);
     }
 
+    // Add subscribe button above pagination
+    const subscribeRow: InlineKeyboardButton[] = [{
+        text: 'Subscribe to this search',
+        callback_data: `search_subscribe:search:${keyword}`
+    }];
+    keyboard.push(subscribeRow);
+
     const navRow: InlineKeyboardButton[] = [];
     if (currentPage > 0) {
         navRow.push({
@@ -86,21 +96,32 @@ export function renderSearchResultsKeyboard(feedItems: FeedItem[], keyword: stri
 }
 
 export function renderSearchResultItemKeyboard(episode: FeedItem, podcast: FeedChannel, keyword: string, currentPage: number): RenderedDetail {
+    const description = cleanHtmlForTelegram(episode.Description);
     const html = `<b>${episode.Title}</b>\n\n` +
         `<b>Podcast:</b> ${podcast.Title}\n` +
         `<b>Duration:</b> ${episode.Duration}\n` +
         `<b>Published:</b> ${episode.PubDate}\n\n` +
-        `<b>Description:</b>\n${episode.Description}`;
+        `<b>Description:</b>\n${description}`;
 
-    const keyboard: InlineKeyboardButton[][] = [[{
-        text: 'Back to Search Results',
-        callback_data: `search_back:search:${keyword}:${currentPage}`
-    }]];
+    // Generate short ID for audio URL and store mapping
+    const audioShortId = crypto.randomUUID().substring(0, 8);
+    audioUrlMap.set(audioShortId, { url: episode.EnclosureUrl, title: episode.Title, podcast: podcast.Title });
+
+    const keyboard: InlineKeyboardButton[][] = [
+        [{
+            text: '🎧 Listen to Episode',
+            callback_data: `search_play:search:${audioShortId}`
+        }],
+        [{
+            text: 'Back to Search Results',
+            callback_data: `search_back:search:${keyword}:${currentPage}`
+        }]
+    ];
 
     return { text: html, keyboard: keyboard };
 }
 
-export async function handleSearchCallbackQuery(chatId: number, messageId: number, data: string): Promise<void> {
+export async function handleSearchCallbackQuery(teleUserId : string, chatId: number, messageId: number, data: string): Promise<void> {
     if (!data.startsWith('search_')) return;
 
     const parts = data.split(':');
@@ -129,7 +150,7 @@ export async function handleSearchCallbackQuery(chatId: number, messageId: numbe
             const editBody = {
                 chat_id: chatId,
                 message_id: messageId,
-                text: cleanHtmlForTelegram(text),
+                text: text,
                 parse_mode: 'HTML',
                 reply_markup: {
                     inline_keyboard: keyboard
@@ -148,5 +169,46 @@ export async function handleSearchCallbackQuery(chatId: number, messageId: numbe
         const [keyword, currentPageStr] = payload;
         const currentPage = parseInt(currentPageStr);
         await handleSearch(chatId, keyword, currentPage, messageId);
+    } else if (action === 'search_subscribe') {
+        const [keyword] = payload;
+        try {
+            const userInfo = await getUserInfoByTelegramId(teleUserId);
+            const result = await recordUserKeywordSubscription(userInfo.userId, keyword, 'itunes', 'US', '', 0);
+            let responseText = '';
+            if (!result) {
+                await doSearchSubscription(keyword, 'US', 'itunes', '');
+                responseText = `Successfully subscribed to "${keyword}"!`;
+            } else {
+                responseText = result
+            }
+            await sendCommonTextMessage(chatId, responseText);
+        } catch (error) {
+            console.error('Error subscribing to search:', error);
+            await sendCommonTextMessage(chatId, 'Error subscribing to search results.');
+        }
+    } else if (action === 'search_play') {
+        const [audioShortId] = payload;
+        const audioInfo = audioUrlMap.get(audioShortId);
+        
+        if (!audioInfo) {
+            await sendCommonTextMessage(chatId, 'Audio URL not found. Please try again.');
+            return;
+        }
+
+        try {
+            console.debug(`Attempting to play audio from URL: ${audioInfo.url}`);
+            
+            if (!audioInfo.url || audioInfo.url.trim() === '') {
+                await sendCommonTextMessage(chatId, 'Audio URL is empty. Cannot play episode.');
+                return;
+            }
+
+            // Send audio using Telegram's dedicated audio API
+            console.debug(`Sending audio to chat ${chatId} with URL: ${audioInfo.url} and title: ${audioInfo.title}`);
+            await sendAudio(chatId, audioInfo.url, audioInfo.title, audioInfo.podcast);
+        } catch (error) {
+            console.error('Error playing audio:', error);
+            await sendCommonTextMessage(chatId, 'Error playing audio. The audio file may be unavailable.');
+        }
     }
 }

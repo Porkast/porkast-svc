@@ -4,6 +4,7 @@ import { FeedItem, FeedItemDto } from "../models/feeds";
 import { Prisma } from "@prisma/client";
 import { formatDateTime, generateFeedItemId } from "../utils/common";
 import { searchPodcastEpisodeFromItunes } from "../utils/itunes";
+import { v4 as uuidv4 } from 'uuid';
 
 
 export async function getAllUserSubscriptions(): Promise<SubscriptionDataDto[]> {
@@ -104,6 +105,50 @@ export async function queryUserLatestKeywordSubscriptionFeedItemList(userId: str
     return resultList
 }
 
+export async function recoredUserKeywordSubscription(userId: string, keyword: string, source: string, country: string, excludeFeedId: string, sortByDate: number): Promise<string> {
+    const userSubscriptionRecord = await prisma.user_subscription.findFirst({
+        where: {
+            user_id: userId,
+            keyword: keyword,
+            source: source,
+            status: 1,
+        }
+    })
+
+    if (userSubscriptionRecord?.id) {
+        return 'Already subscribed'
+    }
+
+    try {
+        await prisma.user_subscription.create({
+            data: {
+                id: uuidv4(),
+                user_id: userId,
+                keyword: keyword,
+                country: country,
+                source: source,
+                exclude_feed_id: excludeFeedId,
+                order_by_date: sortByDate,
+                status: 1,
+                create_time: new Date(),
+                type: 'searchKeyword'
+            }
+        })
+    } catch (error) {
+
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            if (error.code == 'P2002') {
+                return 'Already subscribed'
+            }
+            return error.message
+        }
+
+        return 'Failed'
+    }
+
+    return ""
+}
+
 export async function doSearchSubscription(keyword: string, country: string, source: string, excludeFeedId: string) {
     let searchResultItemList: FeedItem[] = [];
     if (source == 'itunes' || source == '') {
@@ -171,7 +216,7 @@ export async function doSearchSubscription(keyword: string, country: string, sou
     } catch (e) {
         if (e instanceof Prisma.PrismaClientKnownRequestError) {
             if (e.code === 'P2002') {
-                console.log(
+                console.warn(
                     'There is a unique constraint violation, a new record cannot be created with prisma for keyword_subscription, ignore it',
                 )
             }
@@ -187,7 +232,7 @@ export async function doSearchSubscription(keyword: string, country: string, sou
     } catch (e) {
         if (e instanceof Prisma.PrismaClientKnownRequestError) {
             if (e.code === 'P2002') {
-                console.log(
+                console.warn(
                     'There is a unique constraint violation, a new record cannot be created with prisma for feed_item, ignore it',
                 )
             }

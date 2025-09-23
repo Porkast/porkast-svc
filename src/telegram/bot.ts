@@ -183,3 +183,31 @@ export async function editMessage(body: string) {
         console.error('Error sending message:', error);
     }
 }
+
+export async function sendAudio(chatId: number, audioUrl: string, title: string = '', performer: string = '') {
+    if (!BOT_TOKEN) {
+        console.error('TELEGRAM_BOT_TOKEN is not set, cannot send audio.');
+        return;
+    }
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendAudio`;
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                chat_id: chatId,
+                audio: audioUrl,
+                caption: title,
+                performer: performer,
+            }),
+        });
+        const data = await response.json();
+        if (!data.ok) {
+            console.error('Send audio failed:', data.description);
+        }
+    } catch (error) {
+        console.error('Error sending audio:', error);
+    }
+}
