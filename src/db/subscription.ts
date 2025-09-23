@@ -216,7 +216,7 @@ export async function doSearchSubscription(keyword: string, country: string, sou
     } catch (e) {
         if (e instanceof Prisma.PrismaClientKnownRequestError) {
             if (e.code === 'P2002') {
-                console.log(
+                console.warn(
                     'There is a unique constraint violation, a new record cannot be created with prisma for keyword_subscription, ignore it',
                 )
             }
@@ -232,7 +232,7 @@ export async function doSearchSubscription(keyword: string, country: string, sou
     } catch (e) {
         if (e instanceof Prisma.PrismaClientKnownRequestError) {
             if (e.code === 'P2002') {
-                console.log(
+                console.warn(
                     'There is a unique constraint violation, a new record cannot be created with prisma for feed_item, ignore it',
                 )
             }

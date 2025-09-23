@@ -10,7 +10,7 @@ import { sendSubscriptionNewUpdateMessage } from "../telegram/bot";
 export async function updateUserSubscription() {
     const allUserSubs = await getAllUserSubscriptions();
     const updatePromises = allUserSubs.map(async (sub) => {
-        console.log('Update user subscription for user: ' + sub.UserId + ' ,keyword: ' + sub.Keyword + ' ,country: ' + sub.Country + ' ,excludeFeedIds: ' + sub.ExcludeFeedId + ' ,source: ' + sub.Source)
+        console.debug('Update user subscription for user: ' + sub.UserId + ' ,keyword: ' + sub.Keyword + ' ,country: ' + sub.Country + ' ,excludeFeedIds: ' + sub.ExcludeFeedId + ' ,source: ' + sub.Source)
         const keyword = sub.Keyword
         const country = sub.Country
         const excludeFeedIds = sub.ExcludeFeedId
@@ -19,7 +19,7 @@ export async function updateUserSubscription() {
 
         if (!feedItemList || feedItemList.length === 0) {
             const errMsg = 'No results from itunes, with parameters \n' + JSON.stringify({ keyword, country, excludeFeedIds, source })
-            console.log(errMsg)
+            console.debug(errMsg)
             return
         }
 
@@ -42,7 +42,7 @@ export async function updateUserSubscription() {
         } catch (e) {
             if (e instanceof Prisma.PrismaClientKnownRequestError) {
                 if (e.code === 'P2002') {
-                    console.log(
+                    console.warn(
                         'There is a unique constraint violation, a new record cannot be created with prisma for feed_item, ignore it',
                     )
                 }
@@ -62,7 +62,7 @@ export async function updateUserSubscription() {
     })
     try {
         await Promise.all(updatePromises)
-        console.log('Update user subscription finished')
+        console.debug('Update user subscription finished')
     } catch (error) {
         console.error('Update user subscription failed: ', error)
     }
@@ -122,7 +122,7 @@ async function updateUserSubscriptionInfo(keyword: string, country: string, excl
 
     const userEmail = userInfo.email
     if (totalCount > 0 && ksList && ksList.length > 0 && userEmail) {
-        console.log(`User ${userInfo.id} subscription ${keyword} has ${totalCount} new podcast update`)
+        console.debug(`User ${userInfo.id} subscription ${keyword} has ${totalCount} new podcast update`)
         const link = `https://porkast.com/subscription/${userInfo.id}/${keyword}`
         const emailParams: NotificationParams = {
             keyword: keyword,

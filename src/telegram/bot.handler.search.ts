@@ -10,7 +10,8 @@ const SEARCH_PAGE_SIZE = 10;
 
 // Temporary storage for search result GUIDs to keep callback_data short
 const searchResultMap = new Map<string, {feedId: string, guid: string}>();
-
+// Temporary storage for audio URLs to keep callback_data short
+const audioUrlMap = new Map<string, string>();
 
 
 export async function handleSearch(chatId: number, keyword: string, page: number = 0, messageId?: number): Promise<void> {
@@ -101,10 +102,20 @@ export function renderSearchResultItemKeyboard(episode: FeedItem, podcast: FeedC
         `<b>Published:</b> ${episode.PubDate}\n\n` +
         `<b>Description:</b>\n${episode.Description}`;
 
-    const keyboard: InlineKeyboardButton[][] = [[{
-        text: 'Back to Search Results',
-        callback_data: `search_back:search:${keyword}:${currentPage}`
-    }]];
+    // Generate short ID for audio URL and store mapping
+    const audioShortId = crypto.randomUUID().substring(0, 8);
+    audioUrlMap.set(audioShortId, episode.EnclosureUrl);
+
+    const keyboard: InlineKeyboardButton[][] = [
+        [{
+            text: '🎧 Listen to Episode',
+            callback_data: `search_play:search:${audioShortId}`
+        }],
+        [{
+            text: 'Back to Search Results',
+            callback_data: `search_back:search:${keyword}:${currentPage}`
+        }]
+    ];
 
     return { text: html, keyboard: keyboard };
 }
@@ -173,6 +184,27 @@ export async function handleSearchCallbackQuery(teleUserId : string, chatId: num
         } catch (error) {
             console.error('Error subscribing to search:', error);
             await sendCommonTextMessage(chatId, 'Error subscribing to search results.');
+        }
+    } else if (action === 'search_play') {
+        const [audioShortId] = payload;
+        const audioUrl = audioUrlMap.get(audioShortId);
+        
+        if (!audioUrl) {
+            await sendCommonTextMessage(chatId, 'Audio URL not found. Please try again.');
+            return;
+        }
+
+        try {
+            // Send audio using Telegram's audio API
+            const audioBody = {
+                chat_id: chatId,
+                audio: audioUrl,
+                caption: '🎧 Now playing podcast episode'
+            };
+            await sendMessage(JSON.stringify(audioBody));
+        } catch (error) {
+            console.error('Error playing audio:', error);
+            await sendCommonTextMessage(chatId, 'Error playing audio. The audio file may be unavailable.');
         }
     }
 }
