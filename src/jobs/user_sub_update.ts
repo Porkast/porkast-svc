@@ -6,6 +6,7 @@ import { NotificationParams } from "../models/subscription";
 import { getNickname } from "../utils/common";
 import { sendSubscriptionUpdateEmail } from "../email/resend"
 import { sendSubscriptionNewUpdateMessage } from "../telegram/bot";
+import { logger } from "../utils/logger";
 
 export async function updateUserSubscription() {
     const allUserSubs = await getAllUserSubscriptions();
@@ -31,7 +32,7 @@ export async function updateUserSubscription() {
                 skipDuplicates: true
             })
         } catch (error) {
-            console.error('Insert keyword subscription list failed', error)
+            logger.error('Insert keyword subscription list failed', error)
         }
 
         try {
@@ -42,13 +43,13 @@ export async function updateUserSubscription() {
         } catch (e) {
             if (e instanceof Prisma.PrismaClientKnownRequestError) {
                 if (e.code === 'P2002') {
-                    console.warn(
+                    logger.warn(
                         'There is a unique constraint violation, a new record cannot be created with prisma for feed_item, ignore it',
                     )
                 }
             } else {
                 const errMsg = 'Insert search feed item list failed ' + e
-                console.error(errMsg)
+                logger.error(errMsg)
                 return
             }
         }
@@ -57,14 +58,14 @@ export async function updateUserSubscription() {
             await updateUserSubscriptionInfo(keyword, country, excludeFeedIds, source, sub.UserId)
         } catch (error) {
             const errMsg = 'Notify user subscription updated with keyword: ' + keyword + ' ,country: ' + country + ' ,excludeFeedIds: ' + excludeFeedIds + ' ,source: ' + source + ' ,userId: ' + sub.UserId + ' failed: ' + error
-            console.error(errMsg)
+            logger.error(errMsg)
         }
     })
     try {
         await Promise.all(updatePromises)
         console.debug('Update user subscription finished')
     } catch (error) {
-        console.error('Update user subscription failed: ', error)
+        logger.error('Update user subscription failed: ', error)
     }
 }
 
@@ -142,7 +143,7 @@ async function updateUserSubscriptionInfo(keyword: string, country: string, excl
                     try {
                         await sendSubscriptionUpdateEmail(emailParams)
                     } catch (error) {
-                        console.error('Send subscription update email failed', error)
+                        logger.error('Send subscription update email failed', error)
                     }
                 }
             }
@@ -185,7 +186,7 @@ async function updateUserSubscriptionInfo(keyword: string, country: string, excl
                 })
             }
         } catch (error) {
-            console.error('Failed to send subscription update email to ' + userEmail, " with params " + JSON.stringify(emailParams))
+            logger.error('Failed to send subscription update email to ' + userEmail, " with params " + JSON.stringify(emailParams))
         }
 
     }

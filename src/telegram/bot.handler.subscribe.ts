@@ -4,6 +4,7 @@ import { SubscriptionDataDto } from '../models/subscription';
 import { getUserInfoByTelegramId } from '../db/user';
 import { FeedItem } from '../models/feeds';
 import { InlineKeyboardButton, RenderedDetail } from './types';
+import { logger } from '../utils/logger';
 
 const SUBSCRIBE_PAGE_SIZE = 5;
 const SUBSCRIBE_DETAIL_PAGE_SIZE = 10;
@@ -39,7 +40,7 @@ export async function handleSubscribeCommand(chatId: number, teleUserId: string,
             await sendMessage(JSON.stringify(requestBody));
         }
     } catch (error) {
-        console.error('Error handling subscribe command:', error);
+        logger.error('Error handling subscribe command:', error);
         await sendCommonTextMessage(chatId, 'Error loading subscriptions.');
     }
 }
@@ -113,7 +114,7 @@ async function showSubscriptionDetailPage(chatId: number, teleUserId: string, ke
         }
 
     } catch (error) {
-        console.error(`Error fetching subscription detail for ${keyword}:`, error);
+        logger.error(`Error fetching subscription detail for ${keyword}:`, error);
         await sendCommonTextMessage(chatId, `Error fetching details for: ${keyword}`);
     }
 }

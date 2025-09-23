@@ -9,6 +9,7 @@ import { subscribeRouter } from './api/subscribe/route'
 import { playlistRoute } from './api/playlist/route'
 import { listenLaterRoute } from './api/listenlater/route'
 import { rssRoute } from './api/rss/route'
+import { logger } from './utils/logger'
 
 const app = new Hono()
 app.use(
@@ -45,9 +46,9 @@ app.routes.forEach((route) => {
   routeMap.set(route.path, route.method)
 });
 
-console.log('======== Routes ========')
+logger.info('======== Routes ========')
 routeMap.forEach((method, path) => {
-  console.log(`${method}: ${path}`)
+  logger.info(`${method}: ${path}`)
 })
-console.log('======== Routes ========')
+logger.info('======== Routes ========')
 export default app

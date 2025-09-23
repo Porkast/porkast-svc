@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { formatDateTime, generateFeedItemId } from "../utils/common";
 import { searchPodcastEpisodeFromItunes } from "../utils/itunes";
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from "../utils/logger";
 
 
 export async function getAllUserSubscriptions(): Promise<SubscriptionDataDto[]> {
@@ -216,7 +217,7 @@ export async function doSearchSubscription(keyword: string, country: string, sou
     } catch (e) {
         if (e instanceof Prisma.PrismaClientKnownRequestError) {
             if (e.code === 'P2002') {
-                console.warn(
+                logger.warn(
                     'There is a unique constraint violation, a new record cannot be created with prisma for keyword_subscription, ignore it',
                 )
             }
@@ -232,7 +233,7 @@ export async function doSearchSubscription(keyword: string, country: string, sou
     } catch (e) {
         if (e instanceof Prisma.PrismaClientKnownRequestError) {
             if (e.code === 'P2002') {
-                console.warn(
+                logger.warn(
                     'There is a unique constraint violation, a new record cannot be created with prisma for feed_item, ignore it',
                 )
             }

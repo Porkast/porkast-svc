@@ -1,4 +1,5 @@
 import { FeedItem } from "../models/feeds";
+import { logger } from "../utils/logger";
 import { BOT_TOKEN } from "./bot.setup";
 import { BotCommands } from "./bot.types";
 
@@ -18,12 +19,12 @@ export async function SetBotCommands() {
 
         const data = await response.json();
         if (data.ok) {
-            console.log('Telegram bot commands set successfully:', data);
+            logger.info('Telegram bot commands set successfully:', data);
         } else {
-            console.error('Telegram bot commands set failed:', data.description);
+            logger.error('Telegram bot commands set failed:', data.description);
         }
     } catch (error) {
-        console.error('Error setting bot commands:', error);
+        logger.error('Error setting bot commands:', error);
     }
 }
 
@@ -88,7 +89,7 @@ ${updatePodcastInfoStr}
 
 export async function sendCommonTextMessage(chatId: number, text: string) {
     if (!BOT_TOKEN) {
-        console.error('TELEGRAM_BOT_TOKEN is not set, cannot send message.');
+        logger.error('TELEGRAM_BOT_TOKEN is not set, cannot send message.');
         return;
     }
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
@@ -105,16 +106,16 @@ export async function sendCommonTextMessage(chatId: number, text: string) {
         });
         const data = await response.json();
         if (!data.ok) {
-            console.error('Send message failed:', data.description);
+            logger.error('Send message failed:', data.description);
         }
     } catch (error) {
-        console.error('Error sending message:', error);
+        logger.error('Error sending message:', error);
     }
 }
 
 export async function sendMessage(body: string) {
     if (!BOT_TOKEN) {
-        console.error('TELEGRAM_BOT_TOKEN is not set, cannot send message.');
+        logger.error('TELEGRAM_BOT_TOKEN is not set, cannot send message.');
         return;
     }
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
@@ -128,16 +129,16 @@ export async function sendMessage(body: string) {
         });
         const data = await response.json();
         if (!data.ok) {
-            console.error('Send message failed:', data.description);
+            logger.error('Send message failed:', data.description);
         }
     } catch (error) {
-        console.error('Error sending message:', error);
+        logger.error('Error sending message:', error);
     }
 }
 
 export async function answerCallbackQuery(callbackQueryId: string, text: string = '') {
     if (!BOT_TOKEN) {
-        console.error('TELEGRAM_BOT_TOKEN is not set, cannot answer callback query.');
+        logger.error('TELEGRAM_BOT_TOKEN is not set, cannot answer callback query.');
         return;
     }
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`;
@@ -154,16 +155,16 @@ export async function answerCallbackQuery(callbackQueryId: string, text: string 
         });
         const data = await response.json();
         if (!data.ok) {
-            console.error('Send message failed:', data.description);
+            logger.error('Send message failed:', data.description);
         }
     } catch (error) {
-        console.error('Error sending message:', error);
+        logger.error('Error sending message:', error);
     }
 }
 
 export async function editMessage(body: string) {
     if (!BOT_TOKEN) {
-        console.error('TELEGRAM_BOT_TOKEN is not set, cannot send message.');
+        logger.error('TELEGRAM_BOT_TOKEN is not set, cannot send message.');
         return;
     }
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`;
@@ -177,16 +178,16 @@ export async function editMessage(body: string) {
         });
         const data = await response.json();
         if (!data.ok) {
-            console.error('Send message failed:', data.description);
+            logger.error('Send message failed:', data.description);
         }
     } catch (error) {
-        console.error('Error sending message:', error);
+        logger.error('Error sending message:', error);
     }
 }
 
 export async function sendAudio(chatId: number, audioUrl: string, title: string = '', performer: string = '') {
     if (!BOT_TOKEN) {
-        console.error('TELEGRAM_BOT_TOKEN is not set, cannot send audio.');
+        logger.error('TELEGRAM_BOT_TOKEN is not set, cannot send audio.');
         return;
     }
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendAudio`;
@@ -205,9 +206,9 @@ export async function sendAudio(chatId: number, audioUrl: string, title: string 
         });
         const data = await response.json();
         if (!data.ok) {
-            console.error('Send audio failed:', data.description);
+            logger.error('Send audio failed:', data.description);
         }
     } catch (error) {
-        console.error('Error sending audio:', error);
+        logger.error('Error sending audio:', error);
     }
 }

@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { processUpdate } from './bot.handler';
+import { logger } from '../utils/logger';
 
 const teleBot = new Hono();
 
@@ -10,7 +11,7 @@ teleBot.post('/bot-webhook', async (c) => {
         await processUpdate(update);
         return c.json({ ok: true });
     } catch (error) {
-        console.error('Error processing update:', error);
+        logger.error('Error processing update:', error);
         return c.json({ ok: false, error: 'Internal Server Error' }, 200);
     }
 });

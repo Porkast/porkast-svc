@@ -49,7 +49,7 @@ export async function addEpisodeToListenLater(request: AddPodcastToListenLaterRe
             }
         })
     } catch (error) {
-        console.error('Adding podcast to listen later: ', error);
+        logger.error('Adding podcast to listen later: ', error);
         throw new Error('Something went wrong')
     }
 
@@ -63,7 +63,7 @@ export async function getUserListenLaterList(userId: string, limit: number, offs
         queryListData = await queryUserListenLaterList(userId, limit, offset)
         totalCount = await queryUserListenLaterTotalCount(userId)
     } catch (error) {
-        console.error(`Query listen later list by userId ${userId}, offset ${offset}, limit ${limit} failed:`, error)
+        logger.error(`Query listen later list by userId ${userId}, offset ${offset}, limit ${limit} failed:`, error)
         throw new Error('Something went wrong')
     }
 
