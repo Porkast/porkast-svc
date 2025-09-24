@@ -11,7 +11,7 @@ import { logger } from "../utils/logger";
 export async function updateUserSubscription() {
     const allUserSubs = await getAllUserSubscriptions();
     const updatePromises = allUserSubs.map(async (sub) => {
-        console.debug('Update user subscription for user: ' + sub.UserId + ' ,keyword: ' + sub.Keyword + ' ,country: ' + sub.Country + ' ,excludeFeedIds: ' + sub.ExcludeFeedId + ' ,source: ' + sub.Source)
+        logger.debug('Update user subscription for user: ' + sub.UserId + ' ,keyword: ' + sub.Keyword + ' ,country: ' + sub.Country + ' ,excludeFeedIds: ' + sub.ExcludeFeedId + ' ,source: ' + sub.Source)
         const keyword = sub.Keyword
         const country = sub.Country
         const excludeFeedIds = sub.ExcludeFeedId
@@ -20,7 +20,7 @@ export async function updateUserSubscription() {
 
         if (!feedItemList || feedItemList.length === 0) {
             const errMsg = 'No results from itunes, with parameters \n' + JSON.stringify({ keyword, country, excludeFeedIds, source })
-            console.debug(errMsg)
+            logger.debug(errMsg)
             return
         }
 
@@ -63,7 +63,7 @@ export async function updateUserSubscription() {
     })
     try {
         await Promise.all(updatePromises)
-        console.debug('Update user subscription finished')
+        logger.debug('Update user subscription finished')
     } catch (error) {
         logger.error('Update user subscription failed: ', error)
     }
@@ -123,7 +123,7 @@ async function updateUserSubscriptionInfo(keyword: string, country: string, excl
 
     const userEmail = userInfo.email
     if (totalCount > 0 && ksList && ksList.length > 0 && userEmail) {
-        console.debug(`User ${userInfo.id} subscription ${keyword} has ${totalCount} new podcast update`)
+        logger.debug(`User ${userInfo.id} subscription ${keyword} has ${totalCount} new podcast update`)
         const link = `https://porkast.com/subscription/${userInfo.id}/${keyword}`
         const emailParams: NotificationParams = {
             keyword: keyword,

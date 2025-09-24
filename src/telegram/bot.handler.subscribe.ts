@@ -1,10 +1,13 @@
-import { sendCommonTextMessage, sendMessage, editMessage } from './bot';
+import { sendCommonTextMessage, sendMessage, editMessage, sendAudio } from './bot';
 import { queryUserKeywordSubscriptionList, queryUserKeywordSubscriptionDetail, queryKeywordSubscriptionFeedItemList } from '../db/subscription';
 import { SubscriptionDataDto } from '../models/subscription';
 import { getUserInfoByTelegramId } from '../db/user';
 import { FeedItem } from '../models/feeds';
 import { InlineKeyboardButton, RenderedDetail } from './types';
 import { logger } from '../utils/logger';
+import { subscriptionDetailMap, audioUrlMap, renderEpisodeDetailKeyboard } from './bot.handler';
+import { getPodcastEpisodeInfo } from '../utils/itunes';
+import { SUBSCRIBE_COMMAND } from './bot.types';
 
 const SUBSCRIBE_PAGE_SIZE = 5;
 const SUBSCRIBE_DETAIL_PAGE_SIZE = 10;
@@ -51,7 +54,7 @@ export function renderSubscribeKeyboard(subscriptions: SubscriptionDataDto[], te
     for (const sub of subscriptions) {
         keyboard.push([{
             text: sub.Keyword,
-            callback_data: `sub_detail:subscribe:${sub.Keyword}:0` // Add initial page 0
+            callback_data: `subscribe:sub_detail:${sub.Keyword}:0` // Add initial page 0
         }]);
     }
 
@@ -59,13 +62,13 @@ export function renderSubscribeKeyboard(subscriptions: SubscriptionDataDto[], te
     if (currentPage > 0) {
         navRow.push({
             text: 'Previous Page',
-            callback_data: `sub_prev:subscribe:${teleUserId}:${currentPage}`
+            callback_data: `subscribe:sub_prev:${teleUserId}:${currentPage}`
         });
     }
     if (currentPage < totalPages - 1) {
         navRow.push({
             text: 'Next Page',
-            callback_data: `sub_next:subscribe:${teleUserId}:${currentPage}`
+            callback_data: `subscribe:sub_next:${teleUserId}:${currentPage}`
         });
     }
     if (navRow.length > 0) {
@@ -120,11 +123,11 @@ async function showSubscriptionDetailPage(chatId: number, teleUserId: string, ke
 }
 
 export async function handleSubscribeCallbackQuery(chatId: number, messageId: number, data: string, teleUserId: string): Promise<void> {
-    if (!data.startsWith('sub_')) return;
+    if (!data.startsWith('subscribe:')) return;
 
     const parts = data.split(':');
-    const action = parts[0];
-    const command = parts[1]; // 'subscribe'
+    const command = parts[0]; // 'subscribe'
+    const action = parts[1];
     const payload = parts.slice(2);
 
     if (action === 'sub_prev' || action === 'sub_next') {
@@ -146,27 +149,85 @@ export async function handleSubscribeCallbackQuery(chatId: number, messageId: nu
         await showSubscriptionDetailPage(chatId, teleUserId, keyword, newPage, messageId);
     } else if (action === 'sub_back_to_list') {
         const [teleUserIdFromPayload, pageStr] = payload; // pageStr should be '0'
-        await handleSubscribeCommand(chatId, teleUserIdFromPayload, 0, messageId); // Go back to page 0 of subscriptions
+        await handleSubscribeCommand(chatId, teleUserIdFromPayload, parseInt(pageStr), messageId); // Go back to page 0 of subscriptions
+    } else if (action === 'sub_item_detail_back') {
+        const [keyword, currentPageStr] = payload;
+        const currentPage = parseInt(currentPageStr);
+        await showSubscriptionDetailPage(chatId, teleUserId, keyword, currentPage, messageId);
+    } else if (action === 'sub_item_detail') {
+        const [shortId, keyword, currentPageStr] = payload;
+        const mapping = subscriptionDetailMap.get(shortId);
+
+        if (!mapping) {
+            await sendCommonTextMessage(chatId, 'Episode details not found. Please try again.');
+            return;
+        }
+
+        try {
+            const { podcast, episode } = await getPodcastEpisodeInfo(mapping.feedId, mapping.guid);
+            const { text, keyboard } = renderEpisodeDetailKeyboard(episode, podcast, keyword, parseInt(currentPageStr), SUBSCRIBE_COMMAND, 'sub_item_detail');
+
+            const editBody = {
+                chat_id: chatId,
+                message_id: messageId,
+                text: text,
+                parse_mode: 'HTML',
+                reply_markup: {
+                    inline_keyboard: keyboard
+                }
+            };
+
+            await editMessage(JSON.stringify(editBody));
+        } catch (error) {
+            logger.error('Error fetching subscribed episode details:', error);
+            await sendCommonTextMessage(chatId, 'Error loading episode details.');
+        } finally {
+            subscriptionDetailMap.delete(shortId);
+        }
+    } else if (action === 'sub_item_detail_play') {
+        const [audioShortId] = payload;
+        const audioInfo = audioUrlMap.get(audioShortId);
+        
+        if (!audioInfo) {
+            await sendCommonTextMessage(chatId, 'Audio URL not found. Please try again.');
+            return;
+        }
+
+        try {
+            logger.debug(`Attempting to play audio from URL: ${audioInfo.url}`);
+            
+            if (!audioInfo.url || audioInfo.url.trim() === '') {
+                await sendCommonTextMessage(chatId, 'Audio URL is empty. Cannot play episode.');
+                return;
+            }
+
+            logger.debug(`Sending audio to chat ${chatId} with URL: ${audioInfo.url} and title: ${audioInfo.title}`);
+            await sendAudio(chatId, audioInfo.url, audioInfo.title, audioInfo.podcast);
+        } catch (error) {
+            logger.error('Error playing audio:', error);
+            await sendCommonTextMessage(chatId, 'Error playing audio. The audio file may be unavailable.');
+        }
     }
 }
 
 export function renderSubscribeDetailKeyboard(feedItems: FeedItem[], keyword: string, currentPage: number, totalPages: number, teleUserId: string): RenderedDetail {
     let html = `<b>Recent episodes for "${keyword}":</b>\n\n`;
-    const offset = currentPage * SUBSCRIBE_DETAIL_PAGE_SIZE;
-
-    feedItems.forEach((item, index) => {
-        const itemNumber = offset + index + 1;
-        const title = item.Title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const porkastItemLink = `${process.env.PORKAST_WEB_BASE_URL}/podcast/${item.FeedId}/episode/${item.GUID}`;
-        html += `${itemNumber}. <a href="${porkastItemLink}">${title}</a>\n`;
-    });
-
     const keyboard: InlineKeyboardButton[][] = [];
+
+    for (const item of feedItems) {
+        const shortId = crypto.randomUUID().substring(0, 8);
+        subscriptionDetailMap.set(shortId, { feedId: String(item.FeedId), guid: item.GUID });
+
+        keyboard.push([{
+            text: item.Title,
+            callback_data: `subscribe:sub_item_detail:${shortId}:${keyword}:${currentPage}`
+        }]);
+    }
 
     // Add the 'Back to Subscriptions' button row
     keyboard.push([{
         text: 'Back to Subscriptions',
-        callback_data: `sub_back_to_list:subscribe:${teleUserId}:0`
+        callback_data: `subscribe:sub_back_to_list:${teleUserId}:0`
     }]);
 
     const navRow: InlineKeyboardButton[] = [];
@@ -174,13 +235,13 @@ export function renderSubscribeDetailKeyboard(feedItems: FeedItem[], keyword: st
     if (currentPage > 0) {
         navRow.push({
             text: 'Previous',
-            callback_data: `sub_detail_prev:subscribe:${keyword}:${currentPage}`
+            callback_data: `subscribe:sub_detail_prev:${keyword}:${currentPage}`
         });
     }
     if (currentPage < totalPages - 1) {
         navRow.push({
             text: 'Next',
-            callback_data: `sub_detail_next:subscribe:${keyword}:${currentPage}`
+            callback_data: `subscribe:sub_detail_next:${keyword}:${currentPage}`
         });
     }
     if (navRow.length > 0) {

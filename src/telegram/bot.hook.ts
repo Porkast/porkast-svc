@@ -7,7 +7,7 @@ const teleBot = new Hono();
 teleBot.post('/bot-webhook', async (c) => {
     try {
         const update = await c.req.json();
-        console.debug('received update:', JSON.stringify(update, null, 2));
+        logger.debug('received update:', JSON.stringify(update, null, 2));
         await processUpdate(update);
         return c.json({ ok: true });
     } catch (error) {

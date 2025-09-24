@@ -10,6 +10,7 @@ import { playlistRoute } from './api/playlist/route'
 import { listenLaterRoute } from './api/listenlater/route'
 import { rssRoute } from './api/rss/route'
 import { logger } from './utils/logger'
+import { printRoutesTable } from './utils/routes'
 
 const app = new Hono()
 app.use(
@@ -47,8 +48,6 @@ app.routes.forEach((route) => {
 });
 
 logger.info('======== Routes ========')
-routeMap.forEach((method, path) => {
-  logger.info(`${method}: ${path}`)
-})
+printRoutesTable(routeMap)
 logger.info('======== Routes ========')
 export default app

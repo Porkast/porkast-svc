@@ -1,8 +1,46 @@
 import { sendCommonTextMessage } from './bot';
 import { handleSubscribeCommand, handleSubscribeCallbackQuery } from './bot.handler.subscribe';
 import { handleSearch, handleSearchCallbackQuery } from './bot.handler.search';
-import { HELP_COMMAND, START_COMMAND, SUBSCRIBE_COMMAND } from './bot.types';
+import { HELP_COMMAND, SEARCH_COMMAND, START_COMMAND, SUBSCRIBE_COMMAND } from './bot.types';
 import { logger } from '../utils/logger';
+import { FeedItem, FeedChannel } from '../models/feeds';
+import { InlineKeyboardButton, RenderedDetail } from './types';
+
+// Temporary storage for search result GUIDs to keep callback_data short
+export const searchResultMap = new Map<string, {feedId: string, guid: string}>();
+// Temporary storage for subscription detail GUIDs to keep callback_data short
+export const subscriptionDetailMap = new Map<string, {feedId: string, guid: string}>();
+// Temporary storage for audio URLs to keep callback_data short
+export const audioUrlMap = new Map<string, {url: string, title: string, podcast: string}>();
+
+export function renderEpisodeDetailKeyboard(episode: FeedItem, podcast: FeedChannel, keyword: string, currentPage: number, commandType: string, callbackPrefix: string): RenderedDetail {
+    const description = cleanHtmlForTelegram(episode.Description);
+    const porkastItemUrl = process.env.PORKAST_WEB_BASE_URL + `/podcast/${episode.FeedId}/episode/${episode.GUID}`
+    const html = `<b>${episode.Title}</b>\n\n` +
+        `<b>Podcast:</b> ${podcast.Title}\n` +
+        `<b>Duration:</b> ${episode.Duration}\n` +
+        `<b>Published:</b> ${episode.PubDate}\n\n` +
+        `<b>Description:</b>\n${description}\n\n` +
+        `<a href="${porkastItemUrl}">🎧 To Porkast listen this episode</a>`;
+
+    // Generate short ID for audio URL and store mapping
+    const audioShortId = crypto.randomUUID().substring(0, 8);
+    audioUrlMap.set(audioShortId, { url: episode.EnclosureUrl, title: episode.Title, podcast: podcast.Title });
+
+    const keyboard: InlineKeyboardButton[][] = [
+        [{
+            text: '🎧 Listen to Episode',
+            callback_data: `${commandType}:${callbackPrefix}_play:${audioShortId}`
+        }],
+        [{
+            text: 'Back to Search Results',
+            callback_data: `${commandType}:${callbackPrefix}_back:${keyword}:${currentPage}`
+        }]
+    ];
+
+    return { text: html, keyboard: keyboard };
+}
+
 
 function handleCommand(command: string): string {
     switch (command) {
@@ -45,10 +83,10 @@ export async function processUpdate(update: any) {
 
         logger.debug(`received callback query from ${teleUserId} (${chatId}): ${data}`);
         const dataParts = data.split(':');
-        const commandType = dataParts[1];
+        const commandType = dataParts[0];
         if (commandType === SUBSCRIBE_COMMAND) {
             await handleSubscribeCallbackQuery(chatId, messageId, data, teleUserId);
-        } else if (commandType === 'search') {
+        } else if (commandType === SEARCH_COMMAND) {
             await handleSearchCallbackQuery(teleUserId, chatId, messageId, data);
         }
     }
