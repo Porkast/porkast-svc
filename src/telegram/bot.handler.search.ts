@@ -2,21 +2,16 @@ import { sendCommonTextMessage, sendMessage, editMessage, sendAudio } from './bo
 import { searchPodcastEpisodeFromItunes, getPodcastEpisodeInfo } from '../utils/itunes';
 import { FeedItem, FeedChannel } from '../models/feeds';
 import { InlineKeyboardButton, RenderedDetail } from './types';
-import { cleanHtmlForTelegram } from './bot.handler';
+import { searchResultMap, audioUrlMap, renderEpisodeDetailKeyboard } from './bot.handler';
 import { doSearchSubscription, recoredUserKeywordSubscription as recordUserKeywordSubscription } from '../db/subscription';
 import { getUserInfoByTelegramId } from '../db/user';
 import { logger } from '../utils/logger';
-
-const SEARCH_PAGE_SIZE = 10;
-
-// Temporary storage for search result GUIDs to keep callback_data short
-const searchResultMap = new Map<string, {feedId: string, guid: string}>();
-// Temporary storage for audio URLs to keep callback_data short
-const audioUrlMap = new Map<string, {url: string, title: string, podcast: string}>();
+import { SEARCH_COMMAND } from './bot.types';
 
 
 export async function handleSearch(chatId: number, keyword: string, page: number = 0, messageId?: number): Promise<void> {
     try {
+        const SEARCH_PAGE_SIZE = 10;
         const offset = page * SEARCH_PAGE_SIZE;
         const totalCount = 200;
         const feedItems = await searchPodcastEpisodeFromItunes(keyword, 'podcastEpisode', 'US', '', offset, SEARCH_PAGE_SIZE, totalCount);
@@ -65,14 +60,14 @@ export function renderSearchResultsKeyboard(feedItems: FeedItem[], keyword: stri
 
         keyboard.push([{
             text: item.Title,
-            callback_data: `search_detail:search:${shortId}:${keyword}:${currentPage}`
+            callback_data: `search:search_detail:${shortId}:${keyword}:${currentPage}`
         }]);
     }
 
     // Add subscribe button above pagination
     const subscribeRow: InlineKeyboardButton[] = [{
         text: 'Subscribe to this search',
-        callback_data: `search_subscribe:search:${keyword}`
+        callback_data: `search:search_subscribe:${keyword}`
     }];
     keyboard.push(subscribeRow);
 
@@ -80,13 +75,13 @@ export function renderSearchResultsKeyboard(feedItems: FeedItem[], keyword: stri
     if (currentPage > 0) {
         navRow.push({
             text: 'Previous',
-            callback_data: `search_prev:search:${keyword}:${currentPage}`
+            callback_data: `search:search_prev:${keyword}:${currentPage}`
         });
     }
     if (currentPage < totalPages - 1) {
         navRow.push({
             text: 'Next',
-            callback_data: `search_next:search:${keyword}:${currentPage}`
+            callback_data: `search:search_next:${keyword}:${currentPage}`
         });
     }
     if (navRow.length > 0) {
@@ -97,37 +92,15 @@ export function renderSearchResultsKeyboard(feedItems: FeedItem[], keyword: stri
 }
 
 export function renderSearchResultItemKeyboard(episode: FeedItem, podcast: FeedChannel, keyword: string, currentPage: number): RenderedDetail {
-    const description = cleanHtmlForTelegram(episode.Description);
-    const html = `<b>${episode.Title}</b>\n\n` +
-        `<b>Podcast:</b> ${podcast.Title}\n` +
-        `<b>Duration:</b> ${episode.Duration}\n` +
-        `<b>Published:</b> ${episode.PubDate}\n\n` +
-        `<b>Description:</b>\n${description}`;
-
-    // Generate short ID for audio URL and store mapping
-    const audioShortId = crypto.randomUUID().substring(0, 8);
-    audioUrlMap.set(audioShortId, { url: episode.EnclosureUrl, title: episode.Title, podcast: podcast.Title });
-
-    const keyboard: InlineKeyboardButton[][] = [
-        [{
-            text: '🎧 Listen to Episode',
-            callback_data: `search_play:search:${audioShortId}`
-        }],
-        [{
-            text: 'Back to Search Results',
-            callback_data: `search_back:search:${keyword}:${currentPage}`
-        }]
-    ];
-
-    return { text: html, keyboard: keyboard };
+    return renderEpisodeDetailKeyboard(episode, podcast, keyword, currentPage, SEARCH_COMMAND, 'search_item_detail');
 }
 
 export async function handleSearchCallbackQuery(teleUserId : string, chatId: number, messageId: number, data: string): Promise<void> {
-    if (!data.startsWith('search_')) return;
+    if (!data.startsWith('search:')) return;
 
     const parts = data.split(':');
-    const action = parts[0];
-    const command = parts[1]; // 'search'
+    const command = parts[0]; // 'search'
+    const action = parts[1];
     const payload = parts.slice(2);
 
     if (action === 'search_prev' || action === 'search_next') {
@@ -166,7 +139,7 @@ export async function handleSearchCallbackQuery(teleUserId : string, chatId: num
             // Clean up the mapping to prevent memory leaks
             searchResultMap.delete(shortId);
         }
-    } else if (action === 'search_back') {
+    } else if (action === 'search_item_detail_back') {
         const [keyword, currentPageStr] = payload;
         const currentPage = parseInt(currentPageStr);
         await handleSearch(chatId, keyword, currentPage, messageId);
@@ -187,7 +160,7 @@ export async function handleSearchCallbackQuery(teleUserId : string, chatId: num
             logger.error('Error subscribing to search:', error);
             await sendCommonTextMessage(chatId, 'Error subscribing to search results.');
         }
-    } else if (action === 'search_play') {
+    } else if (action === 'searchsearch_item_detail_play') {
         const [audioShortId] = payload;
         const audioInfo = audioUrlMap.get(audioShortId);
         
