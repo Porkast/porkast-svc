@@ -3,12 +3,17 @@ import { FeedChannel, FeedItem } from "../models/feeds"
 import { convertMillsTimeToDuration, generateFeedItemId } from "./common"
 import { iTunesResponse, PodcastFeed, PodcastItem } from "../models/itunes"
 import Parser = require("rss-parser")
+import { logger } from "./logger"
 
 
 export const searchPodcastEpisodeFromItunes = async (q: string, entity: string, country: string, excludeFeedId: string, offset: number, limit: number, totalCount: number): Promise<FeedItem[]> => {
-    const res = await fetch(`https://itunes.apple.com/search?term=${q}&entity=${entity}&media=podcast&country=${country}&limit=${totalCount}`)
+    const searchUrl = `https://itunes.apple.com/search?term=${q}&entity=${entity}&media=podcast&country=${country}&limit=${totalCount}`
+    const res = await fetch(searchUrl)
+    logger.debug(`search url: ${searchUrl}`)
 
-    const jsonResp = await res.json() as iTunesResponse;
+    const jsonRespJson = await res.json();
+    logger.debug(`search result: ${JSON.stringify(jsonRespJson)}`)
+    const jsonResp = jsonRespJson as iTunesResponse
     var items: FeedItem[] = []
     let excludeFeedIdList: string[] = []
     if (excludeFeedId) {
