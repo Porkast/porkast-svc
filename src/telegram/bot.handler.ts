@@ -5,6 +5,7 @@ import { HELP_COMMAND, SEARCH_COMMAND, START_COMMAND, SUBSCRIBE_COMMAND } from '
 import { logger } from '../utils/logger';
 import { FeedItem, FeedChannel } from '../models/feeds';
 import { InlineKeyboardButton, RenderedDetail } from './types';
+import { getUserInfoByTelegramId, createUserFromTelegramInfo } from '../db/user';
 
 // Temporary storage for search result GUIDs to keep callback_data short
 export const searchResultMap = new Map<string, {feedId: string, guid: string}>();
@@ -66,6 +67,22 @@ export async function processUpdate(update: any) {
             const command = text.split(' ')[0].substring(1);
             if (command === SUBSCRIBE_COMMAND) {
                 await handleSubscribeCommand(chatId, teleUserId, 0);
+            } else if (command === START_COMMAND) {
+                // Handle /start command with auto-registration
+                const userInfo = await getUserInfoByTelegramId(teleUserId);
+                if (!userInfo.userId) {
+                    // User doesn't exist - create new user
+                    const newUser = await createUserFromTelegramInfo({
+                        id: teleUserId,
+                        username: update.message.from.username,
+                        first_name: update.message.from.first_name,
+                        last_name: update.message.from.last_name
+                    });
+                    await sendCommonTextMessage(chatId, `Welcome to Porkast, ${newUser.nickname}! Type any keyword to search for podcasts.`);
+                } else {
+                    // User exists - welcome back
+                    await sendCommonTextMessage(chatId, `Welcome back, ${userInfo.nickname}! Type any keyword to search for podcasts.`);
+                }
             } else {
                 const responseText = handleCommand(command);
                 await sendCommonTextMessage(chatId, responseText);
