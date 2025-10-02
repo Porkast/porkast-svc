@@ -6,6 +6,7 @@ import { UserPlaylistDto, UserPlaylistItemDto } from "../../models/playlist";
 import { generateFeedItemId, generatePlaylistId, generatePlaylistItemId } from "../../utils/common";
 import { getPodcastEpisodeInfo } from "../../utils/itunes";
 import { logger } from "../../utils/logger";
+import { getSpotifyEpisodeDetail } from "../../utils/spotify";
 import { UserInfo } from "../user/types";
 
 export async function createPlaylist(userId: string, playlistName: string, description: string): Promise<String> {
@@ -42,8 +43,12 @@ export async function addPodcastToPlaylist(playlistId: string, channelId: string
     }
 
     let itemInfoResp;
+    let feedItem: FeedItem
     if (source == 'itunes') {
         itemInfoResp = await getPodcastEpisodeInfo(channelId, guid)
+        feedItem = itemInfoResp.episode
+    } else {
+        feedItem = await getSpotifyEpisodeDetail(guid)
     }
 
     if (!itemInfoResp) {
@@ -51,7 +56,6 @@ export async function addPodcastToPlaylist(playlistId: string, channelId: string
         throw new Error(message)
     }
 
-    let feedItem: FeedItem = itemInfoResp.episode
     feedItem.Id = await generateFeedItemId(feedItem.FeedLink, feedItem.Title)
     feedItem.ChannelId = await generateFeedItemId(feedItem.FeedLink, feedItem.ChannelTitle)
 

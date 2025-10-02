@@ -1,5 +1,4 @@
 import { sendCommonTextMessage, sendMessage, editMessage, sendAudio } from './bot';
-import { searchPodcastEpisodeFromItunes, getPodcastEpisodeInfo } from '../utils/itunes';
 import { FeedItem, FeedChannel } from '../models/feeds';
 import { InlineKeyboardButton, RenderedDetail } from './types';
 import { searchResultMap, audioUrlMap, renderEpisodeDetailKeyboard } from './bot.handler';
@@ -7,6 +6,7 @@ import { doSearchSubscription, recoredUserKeywordSubscription as recordUserKeywo
 import { getUserInfoByTelegramId } from '../db/user';
 import { logger } from '../utils/logger';
 import { SEARCH_COMMAND } from './bot.types';
+import { getSpotifyEpisodeDetail, getSpotifyShowDetail, searchSpotifyEpisodes } from '../utils/spotify';
 
 
 export async function handleSearch(chatId: number, keyword: string, page: number = 0, messageId?: number): Promise<void> {
@@ -14,7 +14,8 @@ export async function handleSearch(chatId: number, keyword: string, page: number
         const SEARCH_PAGE_SIZE = 10;
         const offset = page * SEARCH_PAGE_SIZE;
         const totalCount = 200;
-        const feedItems = await searchPodcastEpisodeFromItunes(keyword, 'podcastEpisode', 'US', '', offset, SEARCH_PAGE_SIZE, totalCount);
+        // const feedItems = await searchPodcastEpisodeFromItunes(keyword, 'podcastEpisode', 'US', '', offset, SEARCH_PAGE_SIZE, totalCount);
+        const feedItems = await searchSpotifyEpisodes(keyword, 'US', SEARCH_PAGE_SIZE, offset);
 
         if (feedItems.length === 0) {
             logger.debug(`No results found for "${keyword}"`);
@@ -118,7 +119,9 @@ export async function handleSearchCallbackQuery(teleUserId : string, chatId: num
         }
 
         try {
-            const { podcast, episode } = await getPodcastEpisodeInfo(mapping.feedId, mapping.guid);
+            // const { podcast, episode } = await getPodcastEpisodeInfo(mapping.feedId, mapping.guid);
+            const episode = await getSpotifyEpisodeDetail(mapping.guid);
+            const podcast = await getSpotifyShowDetail(episode.ChannelId);
             const { text, keyboard } = renderSearchResultItemKeyboard(episode, podcast, keyword, parseInt(currentPageStr));
 
             const editBody = {

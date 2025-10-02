@@ -1,12 +1,13 @@
 import prisma from "../db/prisma.client"
 import { getAllUserSubscriptions, queryUserLatestKeywordSubscriptionFeedItemList } from "../db/subscription"
-import { buildFeedItemAndKeywordInputList, searchPodcastEpisodeFromItunes } from "../utils/itunes";
 import { Prisma } from "@prisma/client";
 import { NotificationParams } from "../models/subscription";
 import { getNickname } from "../utils/common";
 import { sendSubscriptionUpdateEmail } from "../email/resend"
 import { sendSubscriptionNewUpdateMessage } from "../telegram/bot";
 import { logger } from "../utils/logger";
+import { searchSpotifyEpisodes } from "../utils/spotify";
+import { buildFeedItemAndKeywordInputList } from "../utils/itunes";
 
 export async function updateUserSubscription() {
     const allUserSubs = await getAllUserSubscriptions();
@@ -16,7 +17,8 @@ export async function updateUserSubscription() {
         const country = sub.Country
         const excludeFeedIds = sub.ExcludeFeedId
         const source = sub.Source
-        const feedItemList = await searchPodcastEpisodeFromItunes(keyword, 'podcastEpisode', country, excludeFeedIds, 0, 0, 200)
+        // const feedItemList = await searchPodcastEpisodeFromItunes(keyword, 'podcastEpisode', country, excludeFeedIds, 0, 0, 200)
+        const feedItemList = await searchSpotifyEpisodes(keyword, country, 50, 0)
 
         if (!feedItemList || feedItemList.length === 0) {
             const errMsg = 'No results from itunes, with parameters \n' + JSON.stringify({ keyword, country, excludeFeedIds, source })

@@ -33,6 +33,7 @@
 - Use NODE_ENV to control logging and behavior (development/production)
 - Set PORKAST_WEB_BASE_URL for proper URL generation
 - Set TELEGRAM_BOT_TOKEN for bot functionality
+- Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET for Spotify API access
 
 ## Testing & Verification
 
