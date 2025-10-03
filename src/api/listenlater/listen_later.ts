@@ -8,12 +8,13 @@ import { UserListenLaterDto } from "../../models/listen_later";
 import { queryUserListenLaterList, queryUserListenLaterTotalCount } from "../../db/listen_later";
 import { logger } from "../../utils/logger";
 import { getSpotifyEpisodeDetail } from "../../utils/spotify";
+import { PODCAST_SOURCES } from "../../models/types";
 
 
 export async function addEpisodeToListenLater(request: AddPodcastToListenLaterRequest): Promise<String> {
     let itemInfoResp;
     let feedItem: FeedItem
-    if (request.source == 'itunes') {
+    if (request.source == PODCAST_SOURCES.ITUNES) {
         itemInfoResp = await getPodcastEpisodeInfo(request.channelId, request.itemId)
         feedItem = itemInfoResp.episode
     } else {

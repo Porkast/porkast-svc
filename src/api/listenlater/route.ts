@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { AddPodcastToListenLaterRequest } from "./types";
 import { addEpisodeToListenLater, getUserListenLaterList } from "./listen_later";
 import { UserListenLaterDto } from "../../models/listen_later";
+import { PODCAST_SOURCES } from "../../models/types";
 
 export const listenLaterRoute = new Hono()
 
@@ -9,7 +10,7 @@ listenLaterRoute.post('', async (c) => {
     
     const body: AddPodcastToListenLaterRequest = await c.req.json();
     if (!body.source) {
-        body.source = 'itunes'
+        body.source = PODCAST_SOURCES.SPOTIFY
     }
 
     try {

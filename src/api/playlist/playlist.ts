@@ -3,6 +3,7 @@ import { queryPlaylistByPlaylistId, queryPlaylistItemsByPlaylistId, queryUserPla
 import prisma from "../../db/prisma.client";
 import { FeedItem } from "../../models/feeds";
 import { UserPlaylistDto, UserPlaylistItemDto } from "../../models/playlist";
+import { PODCAST_SOURCES } from "../../models/types";
 import { generateFeedItemId, generatePlaylistId, generatePlaylistItemId } from "../../utils/common";
 import { getPodcastEpisodeInfo } from "../../utils/itunes";
 import { logger } from "../../utils/logger";
@@ -44,7 +45,7 @@ export async function addPodcastToPlaylist(playlistId: string, channelId: string
 
     let itemInfoResp;
     let feedItem: FeedItem
-    if (source == 'itunes') {
+    if (source == PODCAST_SOURCES.ITUNES) {
         itemInfoResp = await getPodcastEpisodeInfo(channelId, guid)
         feedItem = itemInfoResp.episode
     } else {

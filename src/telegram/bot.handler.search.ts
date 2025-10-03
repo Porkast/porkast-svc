@@ -7,6 +7,7 @@ import { getUserInfoByTelegramId } from '../db/user';
 import { logger } from '../utils/logger';
 import { SEARCH_COMMAND } from './bot.types';
 import { getSpotifyEpisodeDetail, getSpotifyShowDetail, searchSpotifyEpisodes } from '../utils/spotify';
+import { PODCAST_SOURCES } from '../models/types';
 
 
 export async function handleSearch(chatId: number, keyword: string, page: number = 0, messageId?: number): Promise<void> {
@@ -150,10 +151,10 @@ export async function handleSearchCallbackQuery(teleUserId : string, chatId: num
         const [keyword] = payload;
         try {
             const userInfo = await getUserInfoByTelegramId(teleUserId);
-            const result = await recordUserKeywordSubscription(userInfo.userId, keyword, 'itunes', 'US', '', 0);
+            const result = await recordUserKeywordSubscription(userInfo.userId, keyword, PODCAST_SOURCES.SPOTIFY, 'US', '', 0);
             let responseText = '';
             if (!result) {
-                await doSearchSubscription(keyword, 'US', 'itunes', '');
+                await doSearchSubscription(keyword, 'US', PODCAST_SOURCES.SPOTIFY, '');
                 responseText = `Successfully subscribed to "${keyword}"!`;
             } else {
                 responseText = result

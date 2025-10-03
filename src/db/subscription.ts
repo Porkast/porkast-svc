@@ -7,6 +7,7 @@ import { searchPodcastEpisodeFromItunes } from "../utils/itunes";
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from "../utils/logger";
 import { searchSpotifyEpisodes } from "../utils/spotify";
+import { PODCAST_SOURCES } from "../models/types";
 
 
 export async function getAllUserSubscriptions(): Promise<SubscriptionDataDto[]> {
@@ -153,7 +154,7 @@ export async function recoredUserKeywordSubscription(userId: string, keyword: st
 
 export async function doSearchSubscription(keyword: string, country: string, source: string, excludeFeedId: string) {
     let searchResultItemList: FeedItem[] = [];
-    if (source == 'itunes' || source == '') {
+    if (source == PODCAST_SOURCES.ITUNES) {
         const searchResult = await searchPodcastEpisodeFromItunes(keyword, 'podcastEpisode', country, excludeFeedId, 0, 0, 200)
         searchResultItemList.push(...searchResult);
     } else {

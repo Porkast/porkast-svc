@@ -2,6 +2,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { AddPodcastToPlaylistRequestData, AddPodcastToPlaylistSchema, CreatePlaylistRequestData, CreatePlaylistSchema } from "./types";
 import { addPodcastToPlaylist, createPlaylist, getPlaylistPodcastList, getUserPlaylistList } from "./playlist";
+import { PODCAST_SOURCES } from "../../models/types";
 
 
 export const playlistRoute = new Hono()
@@ -59,7 +60,7 @@ playlistRoute.post('/item', zValidator('json', AddPodcastToPlaylistSchema), asyn
 
     const body: AddPodcastToPlaylistRequestData = await c.req.json();
     try {
-        const message = await addPodcastToPlaylist(body.playlistId, body.channelId, body.source || 'itunes', body.guid)
+        const message = await addPodcastToPlaylist(body.playlistId, body.channelId, body.source || PODCAST_SOURCES.SPOTIFY, body.guid)
         return c.json({
             code: 0,
             msg: message
