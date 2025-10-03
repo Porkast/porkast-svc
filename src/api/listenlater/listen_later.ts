@@ -1,17 +1,23 @@
 import { createOrUpdateFeedItem } from "../../db/feed_item";
-import { FeedItem } from "../../models/feeds";
+import { FeedChannel, FeedItem } from "../../models/feeds";
 import { formatDateTime, generateFeedItemId, generateID } from "../../utils/common";
 import { getPodcastEpisodeInfo } from "../../utils/itunes";
 import { AddPodcastToListenLaterRequest } from "./types";
 import prisma from "../../db/prisma.client";
 import { UserListenLaterDto } from "../../models/listen_later";
 import { queryUserListenLaterList, queryUserListenLaterTotalCount } from "../../db/listen_later";
+import { logger } from "../../utils/logger";
+import { getSpotifyEpisodeDetail } from "../../utils/spotify";
 
 
 export async function addEpisodeToListenLater(request: AddPodcastToListenLaterRequest): Promise<String> {
     let itemInfoResp;
+    let feedItem: FeedItem
     if (request.source == 'itunes') {
         itemInfoResp = await getPodcastEpisodeInfo(request.channelId, request.itemId)
+        feedItem = itemInfoResp.episode
+    } else {
+        feedItem = await getSpotifyEpisodeDetail(request.itemId)
     }
 
     if (!itemInfoResp) {
@@ -19,7 +25,6 @@ export async function addEpisodeToListenLater(request: AddPodcastToListenLaterRe
         throw new Error(message)
     }
 
-    let feedItem: FeedItem = itemInfoResp.episode
     feedItem.Id = await generateFeedItemId(feedItem.FeedLink, feedItem.Title)
     feedItem.ChannelId = await generateFeedItemId(feedItem.FeedLink, feedItem.ChannelTitle)
 

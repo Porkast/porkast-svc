@@ -6,8 +6,8 @@ import { FeedItem } from '../models/feeds';
 import { InlineKeyboardButton, RenderedDetail } from './types';
 import { logger } from '../utils/logger';
 import { subscriptionDetailMap, audioUrlMap, renderEpisodeDetailKeyboard } from './bot.handler';
-import { getPodcastEpisodeInfo } from '../utils/itunes';
 import { SUBSCRIBE_COMMAND } from './bot.types';
+import { getSpotifyEpisodeDetail, getSpotifyShowDetail } from '../utils/spotify';
 
 const SUBSCRIBE_PAGE_SIZE = 5;
 const SUBSCRIBE_DETAIL_PAGE_SIZE = 10;
@@ -164,7 +164,9 @@ export async function handleSubscribeCallbackQuery(chatId: number, messageId: nu
         }
 
         try {
-            const { podcast, episode } = await getPodcastEpisodeInfo(mapping.feedId, mapping.guid);
+            // const { podcast, episode } = await getPodcastEpisodeInfo(mapping.feedId, mapping.guid);
+            const episode = await getSpotifyEpisodeDetail(mapping.guid);
+            const podcast = await getSpotifyShowDetail(episode.ChannelId);
             const { text, keyboard } = renderEpisodeDetailKeyboard(episode, podcast, keyword, parseInt(currentPageStr), SUBSCRIBE_COMMAND, 'sub_item_detail');
 
             const editBody = {
