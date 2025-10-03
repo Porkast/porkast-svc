@@ -7,7 +7,9 @@ import { sendSubscriptionUpdateEmail } from "../email/resend"
 import { sendSubscriptionNewUpdateMessage } from "../telegram/bot";
 import { logger } from "../utils/logger";
 import { searchSpotifyEpisodes } from "../utils/spotify";
-import { buildFeedItemAndKeywordInputList } from "../utils/itunes";
+import { buildFeedItemAndKeywordInputList, searchPodcastEpisodeFromItunes } from "../utils/itunes";
+import { FeedItem } from "../models/feeds";
+import { PODCAST_SOURCES } from "../models/types";
 
 export async function updateUserSubscription() {
     const allUserSubs = await getAllUserSubscriptions();
@@ -17,11 +19,17 @@ export async function updateUserSubscription() {
         const country = sub.Country
         const excludeFeedIds = sub.ExcludeFeedId
         const source = sub.Source
-        // const feedItemList = await searchPodcastEpisodeFromItunes(keyword, 'podcastEpisode', country, excludeFeedIds, 0, 0, 200)
-        const feedItemList = await searchSpotifyEpisodes(keyword, country, 50, 0)
+        let feedItemList: FeedItem[]
+        if (source === PODCAST_SOURCES.ITUNES) {
+            feedItemList = await searchPodcastEpisodeFromItunes(keyword, 'podcastEpisode', country, excludeFeedIds, 0, 0, 200)
+        } else if (source === PODCAST_SOURCES.SPOTIFY) {
+            feedItemList = await searchSpotifyEpisodes(keyword, country, 50, 0)
+        } else {
+            feedItemList = []
+        }
 
         if (!feedItemList || feedItemList.length === 0) {
-            const errMsg = 'No results from itunes, with parameters \n' + JSON.stringify({ keyword, country, excludeFeedIds, source })
+            const errMsg = 'No search results with parameters \n' + JSON.stringify({ keyword, country, excludeFeedIds, source })
             logger.debug(errMsg)
             return
         }
