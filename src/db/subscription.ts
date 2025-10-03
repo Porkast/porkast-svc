@@ -305,7 +305,7 @@ export async function queryKeywordSubscriptionFeedItemList(userId: string, keywo
         INNER JOIN keyword_subscription ks ON (fi.id = ks.feed_item_id) 
         INNER JOIN user_subscription usk ON (usk.keyword = ks.keyword and usk.country = ks.country and usk.exclude_feed_id = ks.exclude_feed_id and usk.source = ks.source) 
         WHERE usk.user_id = ${userId} and usk.keyword = ${keyword} and usk.source = ${source} and usk.country = ${country} and usk.exclude_feed_id = ${excludeFeedId} and usk.status = 1 
-        ORDER BY fi.pub_date DESC 
+        ORDER BY fi.input_date DESC 
         LIMIT ${limit}
         OFFSET ${offset}
         `
