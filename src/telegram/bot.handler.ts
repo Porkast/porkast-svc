@@ -21,18 +21,28 @@ export function renderEpisodeDetailKeyboard(episode: FeedItem, podcast: FeedChan
         `<b>Podcast:</b> ${podcast.Title}\n` +
         `<b>Duration:</b> ${episode.Duration}\n` +
         `<b>Published:</b> ${episode.PubDate}\n\n` +
-        `<b>Description:</b>\n${description}\n\n` +
-        `<a href="${porkastItemUrl}">🎧 To Porkast listen this episode</a>`;
+        `<b>Description:</b>\n${description}\n\n`
+        // `<a href="${episode.Link}">🎧 To Source Page this episode</a>`;
 
     // Generate short ID for audio URL and store mapping
     const audioShortId = crypto.randomUUID().substring(0, 8);
     audioUrlMap.set(audioShortId, { url: episode.EnclosureUrl, title: episode.Title, podcast: podcast.Title });
 
     const keyboard: InlineKeyboardButton[][] = [
-        [{
-            text: '🎧 Listen to Episode',
-            callback_data: `${commandType}:${callbackPrefix}_play:${audioShortId}`
-        }],
+        [
+            {
+                text: '🌐 View on Porkast',
+                url: porkastItemUrl
+            },
+            {
+                text: '🔗 View on Source',
+                url: episode.Link
+            }
+        ],
+        // [{
+        //     text: '🎧 Listen to Episode',
+        //     callback_data: `${commandType}:${callbackPrefix}_play:${audioShortId}`
+        // }],
         [{
             text: 'Back to Search Results',
             callback_data: `${commandType}:${callbackPrefix}_back:${keyword}:${currentPage}`
