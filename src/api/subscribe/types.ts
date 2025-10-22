@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { PODCAST_SOURCES } from '../../models/types';
+import { DEFAULT_PODCAST_SOURCE } from '../../models/types';
 
 export const KeywordSubscribeSchema = z.object({
     userId: z.string(),
     keyword: z.string(),
     country: z.string().default('US'),
     excludeFeedId: z.string().optional(),
-    source: z.string().default(PODCAST_SOURCES.SPOTIFY),
+    source: z.string().default(DEFAULT_PODCAST_SOURCE),
     sortByDate: z.number().default(1),
 })
 

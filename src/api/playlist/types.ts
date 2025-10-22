@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PODCAST_SOURCES } from '../../models/types';
+import { DEFAULT_PODCAST_SOURCE } from '../../models/types';
 
 export const CreatePlaylistSchema = z.object({
     userId: z.string(),
@@ -12,7 +12,7 @@ export type CreatePlaylistRequestData = z.infer<typeof CreatePlaylistSchema>
 export const AddPodcastToPlaylistSchema = z.object({
     playlistId: z.string(),
     channelId: z.string(),
-    source: z.string().nullable().default(PODCAST_SOURCES.SPOTIFY),
+    source: z.string().nullable().default(DEFAULT_PODCAST_SOURCE),
     guid: z.string(),
 })
 
