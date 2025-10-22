@@ -192,7 +192,7 @@ export async function handleSubscribeCallbackQuery(chatId: number, messageId: nu
         const audioInfo = audioUrlMap.get(audioShortId);
         
         if (!audioInfo) {
-            await sendCommonTextMessage(chatId, 'Audio URL not found. Please try again.');
+            await sendCommonTextMessage(chatId, 'Audio URL not found. Maybe you can try again.');
             return;
         }
 

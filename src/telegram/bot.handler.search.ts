@@ -165,12 +165,12 @@ export async function handleSearchCallbackQuery(teleUserId : string, chatId: num
             logger.error('Error subscribing to search:', error);
             await sendCommonTextMessage(chatId, 'Error subscribing to search results.');
         }
-    } else if (action === 'searchsearch_item_detail_play') {
+    } else if (action === 'search_item_detail_play') {
         const [audioShortId] = payload;
         const audioInfo = audioUrlMap.get(audioShortId);
         
         if (!audioInfo) {
-            await sendCommonTextMessage(chatId, 'Audio URL not found. Please try again.');
+            await sendCommonTextMessage(chatId, 'Audio URL not found. Maybe you can try again.');
             return;
         }
 
