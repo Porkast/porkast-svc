@@ -65,3 +65,6 @@ export const VALID_PODCAST_SOURCES: readonly PodcastSource[] = [
     PODCAST_SOURCES.ITUNES,
     PODCAST_SOURCES.SPOTIFY
 ] as const;
+
+
+export const DEFAULT_PODCAST_SOURCE = PODCAST_SOURCES.ITUNES
