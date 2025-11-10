@@ -2,6 +2,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { KeywordSubscribeRequestData, KeywordSubscribeSchema } from "./types";
 import { getUserSubscriptionList, updateUserSubscription } from "./subscribe";
+import { queryKeywordSubscriptionFeedItemList, queryUserKeywordSubscriptionDetail, disableUserKeywordSubscription } from "../../db/subscription";
 
 
 export const subscribeRouter = new Hono()
@@ -35,3 +36,65 @@ subscribeRouter.get('/list', async (c) => {
         data: data
     })
 })
+
+subscribeRouter.get('/:userId/:keyword', async (c) => {
+    const userId = c.req.param('userId');
+    const keyword = decodeURIComponent(c.req.param('keyword'));
+    const page = c.req.query('page') || '1';
+    const limit = 10;
+    const offset = (Number(page) - 1) * limit;
+
+    let usInfo;
+    try {
+        usInfo = await queryUserKeywordSubscriptionDetail(userId, keyword);
+    } catch (error) {
+        return c.json({
+            code: 1,
+            msg: String(error)
+        });
+    }
+
+    const [feedItemList] = await queryKeywordSubscriptionFeedItemList(
+        userId, 
+        keyword, 
+        usInfo.Source, 
+        usInfo.Country, 
+        usInfo.ExcludeFeedId, 
+        offset, 
+        limit
+    );
+
+    return c.json({
+        code: 0,
+        msg: 'Success',
+        data: feedItemList
+    });
+});
+
+subscribeRouter.delete('/:userId/:keyword', async (c) => {
+    const userId = c.req.param('userId');
+    const keyword = decodeURIComponent(c.req.param('keyword'));
+
+    const resp = {
+        code: 0,
+        message: '',
+        data: null
+    };
+
+    try {
+        const success = await disableUserKeywordSubscription(userId, keyword);
+        if (success) {
+            resp.code = 0;
+            resp.message = 'Subscription successfully disabled';
+        } else {
+            resp.code = 1;
+            resp.message = 'No active subscription found for this keyword';
+        }
+    } catch (error) {
+        console.error('Error disabling user keyword subscription:', error);
+        resp.code = 1;
+        resp.message = 'Failed to disable subscription: ' + String(error);
+    }
+
+    return c.json(resp);
+});

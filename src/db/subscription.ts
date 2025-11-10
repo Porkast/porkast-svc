@@ -393,3 +393,19 @@ export async function queryUserKeywordSubscriptionDetail(userId: string, keyword
 
     return resultDto
 }
+
+export async function disableUserKeywordSubscription(userId: string, keyword: string): Promise<boolean> {
+    const result = await prisma.user_subscription.updateMany({
+        where: {
+            user_id: userId,
+            keyword: keyword,
+            status: 1
+        },
+        data: {
+            status: 0,
+            update_time: new Date()
+        }
+    })
+
+    return result.count > 0
+}
