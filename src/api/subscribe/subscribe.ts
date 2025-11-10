@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { v4 as uuidv4 } from 'uuid';
 import { doSearchSubscription, queryUserKeywordSubscriptionList } from "../../db/subscription";
 import { SubscriptionDataDto } from "../../models/subscription";
+import { logger } from "../../utils/logger";
 
 
 export async function updateUserSubscription(request: KeywordSubscribeRequestData): Promise<String> {
@@ -50,14 +51,14 @@ export async function updateUserSubscription(request: KeywordSubscribeRequestDat
             }
         }
 
-        logger.error(error)
+        logger.error(String(error))
         throw error
     }
 
     try {
         await doSearchSubscription(keyword, country, source, excludeFeedId)
     } catch (error) {
-        logger.error(error)
+        logger.error(String(error))
         return "Something went wrong, please try again later"
     }
 
