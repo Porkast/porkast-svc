@@ -126,7 +126,7 @@ describe('addEpisodeToListenLater()', () => {
     it('should throw error when podcast episode not found', async () => {
         getPodcastEpisodeInfoMock.mockResolvedValue(null);
 
-        await expect(addEpisodeToListenLater(mockRequest))
+        expect(addEpisodeToListenLater(mockRequest))
             .rejects.toThrow('Podcast Episode not found');
     });
 
