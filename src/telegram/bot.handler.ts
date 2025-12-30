@@ -31,8 +31,8 @@ export function renderEpisodeDetailKeyboard(episode: FeedItem, podcast: FeedChan
     const keyboard: InlineKeyboardButton[][] = [
         [
             {
-                text: '🌐 View on Porkast',
-                url: porkastItemUrl
+                text: '🌐 Open in Mini App',
+                web_app: { url: porkastItemUrl }
             },
             {
                 text: '🔗 View on Source',
