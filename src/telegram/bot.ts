@@ -61,11 +61,20 @@ export function sendSubscriptionNewUpdateMessage(
     link: string
 ) {
     var updatePodcastInfoStr = ''
+    const inlineKeyboard: { text: string; web_app?: { url: string }; url?: string }[][] = []
+
     for (let i = 0; i < feedItemList.length; i++) {
         const porkastItemUrl = process.env.TELE_MINI_APP_LINK + `/podcast/${feedItemList[i].FeedId}/episode/${feedItemList[i].GUID}`
         const escapedTitle = escapeHtml(feedItemList[i].Title)
-        updatePodcastInfoStr += `${i + 1}. <a href="${porkastItemUrl}">${escapedTitle}</a>\n`
+        updatePodcastInfoStr += `${i + 1}. ${escapedTitle}\n`
+
+        // Add number button for each episode
+        inlineKeyboard.push([{ text: String(i + 1), web_app: { url: porkastItemUrl } }])
     }
+
+    // Add "Check Now" button at the bottom
+    inlineKeyboard.push([{ text: 'Check Now', web_app: { url: link } }])
+
     var message = `
 #${keyword} has been updated, ${updateCount} new episodes were added, click to check it out.
 
@@ -77,11 +86,7 @@ ${updatePodcastInfoStr}
         text: message,
         parse_mode: 'HTML',
         reply_markup: {
-            inline_keyboard: [
-                [
-                    { text: 'Check Now', url: link }
-                ]
-            ]
+            inline_keyboard: inlineKeyboard
         }
     };
     sendMessage(JSON.stringify(requestBody))
