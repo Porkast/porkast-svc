@@ -98,19 +98,19 @@ export async function addPodcastToPlaylist(playlistId: string, channelId: string
 }
 
 export async function getPlaylistPodcastList(userId: string, playlistId: string, limit: string, offset: string): Promise<{ userInfo: UserInfo, playlist: UserPlaylistItemDto[]}> {
-    const playlistInfoResult = await prisma.user_playlist.findFirst({
+    const playlistInfoResult = await prisma.user_playlist_item.findFirst({
         where: {
-            id: playlistId
+            playlist_id: playlistId
         }
     })
 
-    if (!playlistInfoResult || playlistInfoResult.user_id !== userId) {
+    if (!playlistInfoResult) {
         throw new Error('Playlist not found')
     }
 
     const userInfoResult = await prisma.user_info.findFirst({
         where: {
-            id: playlistInfoResult?.user_id
+            id: userId
         }
     })
 
