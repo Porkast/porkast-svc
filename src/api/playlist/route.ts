@@ -1,7 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { AddPodcastToPlaylistRequestData, AddPodcastToPlaylistSchema, CreatePlaylistRequestData, CreatePlaylistSchema } from "./types";
-import { addPodcastToPlaylist, createPlaylist, getPlaylistPodcastList, getUserPlaylistList } from "./playlist";
+import { addPodcastToPlaylist, createPlaylist, getPlaylistById, getPlaylistPodcastList, getUserPlaylistList } from "./playlist";
 import { DEFAULT_PODCAST_SOURCE } from "../../models/types";
 
 
@@ -53,6 +53,31 @@ playlistRoute.get('/list/:userId/:playlistId', async (c) => {
         code: 0,
         msg: 'Success',
         data: data.playlist
+    })
+})
+
+playlistRoute.get('/:playlistId', async (c) => {
+    const playlistId = c.req.param('playlistId')
+    if (!playlistId) {
+        return c.json({
+            code: 1,
+            msg: 'Playlist Id is required'
+        })
+    }
+    const data = await getPlaylistById(playlistId)
+    if (!data) {
+        return c.json({
+            code: 1,
+            msg: 'Playlist not found'
+        })
+    }
+    return c.json({
+        code: 0,
+        msg: 'Success',
+        data: {
+            ...data.playlist,
+            UserInfo: data.userInfo
+        }
     })
 })
 
