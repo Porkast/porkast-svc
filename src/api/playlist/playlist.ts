@@ -97,6 +97,54 @@ export async function addPodcastToPlaylist(playlistId: string, channelId: string
     return 'Done'
 }
 
+export async function getPlaylistById(playlistId: string): Promise<{ playlist: UserPlaylistDto, userInfo: UserInfo } | null> {
+    const playlistInfo = await queryPlaylistByPlaylistId(playlistId)
+    if (!playlistInfo) {
+        return null
+    }
+
+    const totalCount = await prisma.user_playlist_item.count({
+        where: {
+            playlist_id: playlistId
+        }
+    })
+    playlistInfo.Count = totalCount
+
+    let creatorId = ''
+    if (!playlistInfo.CreatorId) {
+        creatorId = playlistInfo.UserId
+    } else {
+        creatorId = playlistInfo.CreatorId
+    }
+
+    const creatorInfo = await prisma.user_info.findUnique({
+        where: {
+            id: creatorId
+        }
+    })
+
+    if (!creatorInfo) {
+        return null
+    }
+
+    const userInfo: UserInfo = {
+        userId: creatorInfo.id,
+        telegramId: creatorInfo.telegram_id || '',
+        nickname: creatorInfo.nickname || '',
+        password: '',
+        email: creatorInfo.email || '',
+        phone: creatorInfo.phone || '',
+        avatar: creatorInfo.avatar || '',
+        regDate: creatorInfo.reg_date || new Date(),
+        updateDate: creatorInfo.update_date || new Date()
+    }
+
+    return {
+        playlist: playlistInfo,
+        userInfo
+    }
+}
+
 export async function getPlaylistPodcastList(userId: string, playlistId: string, limit: string, offset: string): Promise<{ userInfo: UserInfo, playlist: UserPlaylistItemDto[]}> {
     const playlistInfoResult = await prisma.user_playlist_item.findFirst({
         where: {
