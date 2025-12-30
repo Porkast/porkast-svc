@@ -134,7 +134,7 @@ async function updateUserSubscriptionInfo(keyword: string, country: string, excl
     const userEmail = userInfo.email
     if (totalCount > 0 && ksList && ksList.length > 0 && userEmail) {
         logger.debug(`User ${userInfo.id} subscription ${keyword} has ${totalCount} new podcast update`)
-        const link = `https://porkast.com/subscription/${userInfo.id}/${keyword}`
+        const link = `${process.env.TELE_MINI_APP_LINK}/subscription/${userInfo.id}/${keyword}`
         const emailParams: NotificationParams = {
             keyword: keyword,
             nickname: getNickname(userEmail, userInfo.nickname || ''),

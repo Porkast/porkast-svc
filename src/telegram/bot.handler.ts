@@ -16,7 +16,7 @@ export const audioUrlMap = new Map<string, {url: string, title: string, podcast:
 
 export function renderEpisodeDetailKeyboard(episode: FeedItem, podcast: FeedChannel, keyword: string, currentPage: number, commandType: string, callbackPrefix: string): RenderedDetail {
     const description = cleanHtmlForTelegram(episode.Description);
-    const porkastItemUrl = process.env.PORKAST_WEB_BASE_URL + `/podcast/${episode.FeedId}/episode/${episode.GUID}`
+    const porkastItemUrl = process.env.TELE_MINI_APP_LINK + `/podcast/${episode.FeedId}/episode/${episode.GUID}`
     const html = `<b>${episode.Title}</b>\n\n` +
         `<b>Podcast:</b> ${podcast.Title}\n` +
         `<b>Duration:</b> ${episode.Duration}\n` +
