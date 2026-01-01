@@ -62,6 +62,7 @@ export function sendSubscriptionNewUpdateMessage(
 ) {
     var updatePodcastInfoStr = ''
     const inlineKeyboard: { text: string; web_app?: { url: string }; url?: string }[][] = []
+    let currentRow: { text: string; web_app: { url: string } }[] = []
 
     for (let i = 0; i < feedItemList.length; i++) {
         const porkastItemUrl = process.env.TELE_MINI_APP_LINK + `/podcast/${feedItemList[i].FeedId}/episode/${feedItemList[i].GUID}`
@@ -69,7 +70,17 @@ export function sendSubscriptionNewUpdateMessage(
         updatePodcastInfoStr += `${i + 1}. ${escapedTitle}\n`
 
         // Add number button for each episode
-        inlineKeyboard.push([{ text: String(i + 1), web_app: { url: porkastItemUrl } }])
+        currentRow.push({ text: String(i + 1), web_app: { url: porkastItemUrl } })
+
+        // every 5 episode in a line
+        if (currentRow.length === 5) {
+            inlineKeyboard.push(currentRow)
+            currentRow = []
+        }
+    }
+
+    if (currentRow.length > 0) {
+        inlineKeyboard.push(currentRow)
     }
 
     // Add "Check Now" button at the bottom
