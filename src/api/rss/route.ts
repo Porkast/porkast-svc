@@ -84,3 +84,38 @@ rssRoute.get('/subscription/:userId/:keyword', async (c) => {
         })
     }
 })
+
+rssRoute.get('/proxy', async (c) => {
+    const url = c.req.query('url')
+    if (!url) {
+        return c.json({
+            code: 1,
+            msg: 'URL parameter is required'
+        }, 400)
+    }
+
+    try {
+        const decodedUrl = decodeURIComponent(url)
+        const response = await fetch(decodedUrl)
+
+        if (!response.ok) {
+            return c.json({
+                code: 1,
+                msg: `Failed to fetch RSS feed: ${response.statusText}`
+            }, response.status as any)
+        }
+
+        const text = await response.text()
+        const contentType = response.headers.get('content-type') || 'application/rss+xml'
+
+        return c.body(text, 200, {
+            'Content-Type': contentType
+        })
+    } catch (error) {
+        logger.error(`Proxy fetch error for URL ${url}:`, error)
+        return c.json({
+            code: 1,
+            msg: 'Ops! Something went wrong fetching the RSS feed'
+        }, 500)
+    }
+})
