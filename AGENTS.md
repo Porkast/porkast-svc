@@ -1,4 +1,4 @@
-# Porkast Service - iFlow CLI Context Documentation
+# Porkast Service - Context Documentation
 
 ## Project Overview
 
