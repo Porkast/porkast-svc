@@ -405,6 +405,30 @@ model user_info {
   @@schema("public")
 }
 
+model verification_token {
+  id         String   @id @default(cuid()) @db.VarChar(64)
+  email      String   @db.VarChar(128)
+  token      String   @db.VarChar(64)
+  expires_at DateTime @db.Timestamp(6)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  @@unique([email, token])
+  @@schema("public")
+}
+
+model app_session {
+  id         String    @id @default(cuid()) @db.VarChar(64)
+  user_id    String    @db.VarChar(64)
+  token_hash String    @unique @db.VarChar(64)
+  expires_at DateTime  @db.Timestamp(6)
+  created_at DateTime  @default(now()) @db.Timestamp(6)
+  revoked_at DateTime? @db.Timestamp(6)
+
+  @@index([user_id], map: "app_session_user_id_idx")
+  @@index([expires_at], map: "app_session_expires_at_idx")
+  @@schema("public")
+}
+
 model user_listen_later {
   id         String    @id @db.VarChar(64)
   user_id    String?   @db.VarChar(128)

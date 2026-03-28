@@ -5,6 +5,7 @@ import { IniteBakerJobs } from './jobs/job_register'
 import { marked } from 'marked'
 import { InitTelegramBot } from './telegram/bot.setup'
 import { userRouter } from './api/user/route'
+import { authRouter } from './api/auth/route'
 import { subscribeRouter } from './api/subscribe/route'
 import { playlistRoute } from './api/playlist/route'
 import { listenLaterRoute } from './api/listenlater/route'
@@ -34,6 +35,7 @@ app.get('/', async (c) => {
 
 app.route('/telegram', teleBot)
 app.route('/api/user', userRouter)
+app.route('/api/auth', authRouter)
 app.route('/api/subscribe', subscribeRouter)
 app.route('/api/playlist', playlistRoute)
 app.route('/api/listenlater', listenLaterRoute)

@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test';
-import { syncUserData, getUserInfoByTelegramId } from './user';
-import prisma from '../../db/prisma.client';
+import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { syncUserData } from './user';
+import { getUserInfoByTelegramId } from '../../db/user';
 import type { UserSyncRequestData, UserInfo } from './types';
 
 // Mock Prisma client
@@ -13,8 +13,7 @@ const prismaMock = {
     }
 };
 
-// Mock the prisma client module
-mock.module('../db/prisma.client', () => ({
+mock.module('../../db/prisma.client', () => ({
     default: prismaMock
 }));
 
@@ -136,7 +135,9 @@ describe('User API Tests', () => {
                 password: 'password123',
                 email: 'test@example.com',
                 phone: '1234567890',
-                avatar: 'avatar.jpg'
+                avatar: 'avatar.jpg',
+                regDate: expect.any(Date),
+                updateDate: expect.any(Date)
             });
         });
 
@@ -152,7 +153,9 @@ describe('User API Tests', () => {
                 password: '',
                 email: '',
                 phone: '',
-                avatar: ''
+                avatar: '',
+                regDate: expect.any(Date),
+                updateDate: expect.any(Date)
             });
         });
 
@@ -168,7 +171,9 @@ describe('User API Tests', () => {
                 password: '',
                 email: '',
                 phone: '',
-                avatar: ''
+                avatar: '',
+                regDate: expect.any(Date),
+                updateDate: expect.any(Date)
             });
         });
     });
