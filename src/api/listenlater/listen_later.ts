@@ -16,6 +16,10 @@ export async function addEpisodeToListenLater(request: AddPodcastToListenLaterRe
     let feedItem: FeedItem
     if (request.source == PODCAST_SOURCES.ITUNES) {
         itemInfoResp = await getPodcastEpisodeInfo(request.channelId, request.itemId)
+        if (!itemInfoResp?.episode) {
+            const message = 'Podcast Episode not found'
+            throw new Error(message)
+        }
         feedItem = itemInfoResp.episode
     } else {
         feedItem = await getSpotifyEpisodeDetail(request.itemId)

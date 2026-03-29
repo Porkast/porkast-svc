@@ -8,6 +8,9 @@ const prismaMock = {
         create: mock(),
         findFirst: mock(),
     },
+    user_playlist_item: {
+        findFirst: mock(),
+    },
     user_info: {
         findFirst: mock(),
     },
@@ -30,6 +33,7 @@ mock.module('../../db/playlist', () => ({
 describe('createPlaylist()', () => {
     beforeEach(() => {
         prismaMock.user_playlist.create.mockReset();
+        prismaMock.user_playlist_item.findFirst.mockReset();
     });
 
     it('should create a new playlist when user provides valid data', async () => {
@@ -52,6 +56,7 @@ describe('createPlaylist()', () => {
 describe('getPlaylistPodcastList()', () => {
     beforeEach(() => {
         prismaMock.user_playlist.findFirst.mockReset();
+        prismaMock.user_playlist_item.findFirst.mockReset();
         prismaMock.user_info.findFirst.mockReset();
         playlistItemsMock.mockReset();
     });
@@ -110,6 +115,9 @@ describe('getPlaylistPodcastList()', () => {
             id: 'playlist1',
             user_id: '123'
         });
+        prismaMock.user_playlist_item.findFirst.mockResolvedValue({
+            playlist_id: 'playlist1'
+        });
         prismaMock.user_info.findFirst.mockResolvedValue({
             id: '123',
             nickname: 'testuser',
@@ -136,26 +144,25 @@ describe('getPlaylistPodcastList()', () => {
     });
 
     it('should throw error when playlist not found', async () => {
-        prismaMock.user_playlist.findFirst.mockResolvedValue(null);
+        prismaMock.user_playlist_item.findFirst.mockResolvedValue(null);
 
         await expect(getPlaylistPodcastList('123', 'nonexistent', '10', '0'))
             .rejects.toThrow('Playlist not found');
     });
 
     it('should throw error when playlist belongs to different user', async () => {
-        prismaMock.user_playlist.findFirst.mockResolvedValue({
-            id: 'playlist1',
-            user_id: '456'
+        prismaMock.user_playlist_item.findFirst.mockResolvedValue({
+            playlist_id: 'playlist1'
         });
+        prismaMock.user_info.findFirst.mockResolvedValue(null);
 
         await expect(getPlaylistPodcastList('123', 'playlist1', '10', '0'))
-            .rejects.toThrow('Playlist not found');
+            .rejects.toThrow('User not found');
     });
 
     it('should throw error when user not found', async () => {
-        prismaMock.user_playlist.findFirst.mockResolvedValue({
-            id: 'playlist1',
-            user_id: '123'
+        prismaMock.user_playlist_item.findFirst.mockResolvedValue({
+            playlist_id: 'playlist1'
         });
         prismaMock.user_info.findFirst.mockResolvedValue(null);
 
@@ -164,9 +171,8 @@ describe('getPlaylistPodcastList()', () => {
     });
 
     it('should return empty playlist when no items exist', async () => {
-        prismaMock.user_playlist.findFirst.mockResolvedValue({
-            id: 'playlist1',
-            user_id: '123'
+        prismaMock.user_playlist_item.findFirst.mockResolvedValue({
+            playlist_id: 'playlist1'
         });
         prismaMock.user_info.findFirst.mockResolvedValue({
             id: '123',
