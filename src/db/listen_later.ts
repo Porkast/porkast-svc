@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client"
 import prisma from "./prisma.client"
 import { UserListenLaterDto } from "../models/listen_later"
+import { decodeDatabaseText } from "../utils/text"
 
 export const queryUserListenLaterList = async (userId: string, limit: number, offset: number): Promise<UserListenLaterDto[]> => {
 
@@ -17,7 +18,8 @@ export const queryUserListenLaterList = async (userId: string, limit: number, of
     )
 
     for (let listenLaterDto of listenLaterDtoList) {
-        listenLaterDto.description = String(listenLaterDto.description || '')
+        listenLaterDto.description = decodeDatabaseText(listenLaterDto.description)
+        listenLaterDto.text_description = decodeDatabaseText(listenLaterDto.text_description || listenLaterDto.description)
     }
 
     return listenLaterDtoList

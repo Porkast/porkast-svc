@@ -3,6 +3,7 @@ import { addEpisodeToListenLater, getUserListenLaterList } from './listen_later'
 import { AddPodcastToListenLaterRequest } from './types';
 import { UserListenLaterDto } from '../../models/listen_later';
 import { FeedItem } from '../../models/feeds';
+import { decodeDatabaseText } from '../../utils/text';
 
 const prismaMock = {
     user_listen_later: {
@@ -254,5 +255,11 @@ describe('getUserListenLaterList()', () => {
         expect(result).toHaveLength(2);
         expect(result[0].count).toBe(10);
         expect(result[1].count).toBe(10);
+    });
+
+    it('decodes utf-8 byte descriptions', () => {
+        const description = Buffer.from('我们对国产，是更严苛，还是更偏爱？', 'utf8')
+
+        expect(decodeDatabaseText(description)).toBe('我们对国产，是更严苛，还是更偏爱？')
     });
 });

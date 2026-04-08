@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import { updateUserSubscription } from './subscribe';
 import type { PrismaClient } from '@prisma/client';
 import type { KeywordSubscribeRequestData } from './types';
+import { decodeDatabaseText } from '../../utils/text';
 
 const mockPrisma = {
   user_subscription: {
@@ -72,5 +73,11 @@ describe('updateUserSubscription', () => {
     expect(result).toBe('done');
     expect(mockPrisma.user_subscription.create).toHaveBeenCalled();
     expect(mockDoSearchSubscription).toHaveBeenCalled();
+  });
+
+  it('decodes utf-8 byte descriptions used by subscription responses', () => {
+    const description = Buffer.from('小罐茶到底是不是大师造', 'utf8');
+
+    expect(decodeDatabaseText(description)).toBe('小罐茶到底是不是大师造');
   });
 });
