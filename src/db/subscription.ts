@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { logger } from "../utils/logger";
 import { searchSpotifyEpisodes } from "../utils/spotify";
 import { PODCAST_SOURCES } from "../models/types";
+import { decodeDatabaseText } from "../utils/text";
 
 
 export async function getAllUserSubscriptions(): Promise<SubscriptionDataDto[]> {
@@ -85,7 +86,7 @@ export async function queryUserLatestKeywordSubscriptionFeedItemList(userId: str
             EnclosureUrl: queryResult.enclosure_url || '',
             EnclosureLength: queryResult.enclosure_length || '0',
             EnclosureType: queryResult.enclosure_type || '',
-            Description: String(queryResult.description) || '',
+            Description: decodeDatabaseText(queryResult.description),
             Source: queryResult.source || '',
             Country: queryResult.country || '',
             ExcludeFeedId: queryResult.exclude_feed_id || '',
@@ -337,7 +338,7 @@ export async function queryKeywordSubscriptionFeedItemList(userId: string, keywo
             EnclosureUrl: queryResult.enclosure_url || '',
             EnclosureLength: queryResult.enclosure_length || '0',
             EnclosureType: queryResult.enclosure_type || '',
-            Description: String(queryResult.description) || '',
+            Description: decodeDatabaseText(queryResult.description),
             Source: queryResult.source || '',
             Country: queryResult.country || '',
             ExcludeFeedId: queryResult.exclude_feed_id || '',

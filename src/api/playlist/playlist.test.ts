@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test';
 import { createPlaylist, getPlaylistPodcastList } from './playlist';
 import { UserPlaylistItemDto } from '../../models/playlist';
 import { UserInfo } from '../user/types';
+import { decodeDatabaseText } from '../../utils/text';
 
 const prismaMock = {
     user_playlist: {
@@ -211,3 +212,11 @@ describe('getPlaylistPodcastList()', () => {
         expect(result).toBe('Something went wrong');
     });
 });
+
+describe('decodeDatabaseText() in playlist responses', () => {
+    it('decodes playlist descriptions as utf-8', () => {
+        const description = Buffer.from('黑神话', 'utf8')
+
+        expect(decodeDatabaseText(description)).toBe('黑神话')
+    })
+})

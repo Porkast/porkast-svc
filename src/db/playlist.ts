@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client"
 import { UserPlaylistDto, UserPlaylistEntity, UserPlaylistItemDto, UserPLaylistItemEntity } from "../models/playlist"
 import prisma from "./prisma.client"
 import { formatDateTime } from "../utils/common"
+import { decodeDatabaseText } from "../utils/text"
 
 export async function queryPlaylistByPlaylistId(playlistId: string): Promise<UserPlaylistDto | null> {
 
@@ -18,7 +19,7 @@ export async function queryPlaylistByPlaylistId(playlistId: string): Promise<Use
     const playlistDto: UserPlaylistDto = {
         Id: queryResult.id,
         PlaylistName: queryResult.playlist_name || '',
-        Description: String(queryResult.description) || '',
+        Description: decodeDatabaseText(queryResult.description),
         UserId: queryResult.user_id || '',
         Status: queryResult.status || 0,
         CreatorId: queryResult.creator_id || '',
@@ -49,7 +50,7 @@ export async function queryUserPlaylistListByUserId(userId: string, offset: numb
         resultDtos.push({
             Id: result.id,
             PlaylistName: result.playlist_name || '',
-            Description: result.description ? Buffer.from(result.description).toString('ascii') : '',
+            Description: decodeDatabaseText(result.description),
             UserId: result.user_id || '',
             Status: result.status || 0,
             CreatorId: result.creator_id || '',
@@ -105,8 +106,8 @@ export async function queryPlaylistItemsByPlaylistId(playlistId: string): Promis
             Explicit: result.explicit || '',
             Season: result.season || '',
             EpisodeType: result.episodeType || '',
-            Description: String(result.description),
-            TextDescription: String(result.description),
+            Description: decodeDatabaseText(result.description),
+            TextDescription: decodeDatabaseText(result.description),
             ChannelImageUrl: "",
             ChannelTitle: result.channel_title || '',
             HighlightChannelTitle: "",
