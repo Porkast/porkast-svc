@@ -146,6 +146,8 @@ export async function getPlaylistById(playlistId: string): Promise<{ playlist: U
 }
 
 export async function getPlaylistPodcastList(userId: string, playlistId: string, limit: string, offset: string): Promise<{ userInfo: UserInfo, playlist: UserPlaylistItemDto[]}> {
+    const limitInt = parseInt(limit)
+    const offsetInt = parseInt(offset)
     const playlistInfoResult = await prisma.user_playlist_item.findFirst({
         where: {
             playlist_id: playlistId
@@ -178,7 +180,7 @@ export async function getPlaylistPodcastList(userId: string, playlistId: string,
         telegramId: userInfoResult?.telegram_id || ''
     }
 
-    const playlist = await queryPlaylistItemsByPlaylistId(playlistId)
+    const playlist = await queryPlaylistItemsByPlaylistId(playlistId, offsetInt, limitInt)
 
     return {
         userInfo,

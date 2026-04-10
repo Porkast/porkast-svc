@@ -63,7 +63,7 @@ export async function queryUserPlaylistListByUserId(userId: string, offset: numb
     return resultDtos
 }
 
-export async function queryPlaylistItemsByPlaylistId(playlistId: string): Promise<UserPlaylistItemDto[]> {
+export async function queryPlaylistItemsByPlaylistId(playlistId: string, offset: number = 0, limit: number = 10): Promise<UserPlaylistItemDto[]> {
 
     const resultList: UserPlaylistItemDto[] = []
 
@@ -74,8 +74,8 @@ export async function queryPlaylistItemsByPlaylistId(playlistId: string): Promis
             JOIN feed_item fi ON upi.item_id = fi.id
             WHERE upi.playlist_id = ${playlistId} and upi.status = 1
             ORDER BY upi.reg_date DESC
-            LIMIT 10
-            OFFSET 0;
+            LIMIT ${limit}
+            OFFSET ${offset};
         `
     )
 
