@@ -142,6 +142,25 @@ describe('getPlaylistPodcastList()', () => {
             Description: 'Test description'
         });
         expect(result.playlist).toHaveLength(1);
+        expect(playlistItemsMock).toHaveBeenCalledWith('playlist1', 0, 10);
+    });
+
+    it('passes offset and limit through to the playlist query', async () => {
+        prismaMock.user_playlist_item.findFirst.mockResolvedValue({
+            playlist_id: 'playlist1'
+        });
+        prismaMock.user_info.findFirst.mockResolvedValue({
+            id: '123',
+            nickname: 'testuser',
+            email: 'test@example.com',
+            reg_date: new Date(),
+            update_date: new Date()
+        });
+        playlistItemsMock.mockResolvedValue([mockPlaylistItem]);
+
+        await getPlaylistPodcastList('123', 'playlist1', '5', '15');
+
+        expect(playlistItemsMock).toHaveBeenCalledWith('playlist1', 15, 5);
     });
 
     it('should throw error when playlist not found', async () => {
