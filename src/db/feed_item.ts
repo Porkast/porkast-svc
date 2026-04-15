@@ -3,6 +3,10 @@ import { FeedItem, FeedItemDto } from "../models/feeds";
 import prisma from "./prisma.client";
 import { mapFeedItemDtoToFeedItem } from "../utils/feed_item";
 
+function encodeFeedItemDescription(description: string): Buffer {
+    return Buffer.from(description || '', 'utf8')
+}
+
 
 export async function createOrUpdateFeedItem(feedItem: FeedItem) {
 
@@ -36,7 +40,7 @@ export async function createOrUpdateFeedItem(feedItem: FeedItem) {
             season: feedItem.Season,
             episodetype: feedItem.EpisodeType,
             source: feedItem.Source,
-            description: feedItem.Description,
+            description: encodeFeedItemDescription(feedItem.Description),
         }
         await prisma.feed_item.update({
             where: {
@@ -68,7 +72,7 @@ export async function createOrUpdateFeedItem(feedItem: FeedItem) {
             season: feedItem.Season,
             episodetype: feedItem.EpisodeType,
             source: feedItem.Source,
-            description: feedItem.Description,
+            description: encodeFeedItemDescription(feedItem.Description),
         }
         await prisma.feed_item.create({
             data: itemInfoCreate
