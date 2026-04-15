@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
-import { FeedItem } from "../models/feeds";
+import { FeedItem, FeedItemDto } from "../models/feeds";
 import prisma from "./prisma.client";
+import { mapFeedItemDtoToFeedItem } from "../utils/feed_item";
 
 
 export async function createOrUpdateFeedItem(feedItem: FeedItem) {
@@ -66,9 +67,42 @@ export async function createOrUpdateFeedItem(feedItem: FeedItem) {
             explicit: feedItem.Explicit,
             season: feedItem.Season,
             episodetype: feedItem.EpisodeType,
+            source: feedItem.Source,
+            description: feedItem.Description,
         }
         await prisma.feed_item.create({
             data: itemInfoCreate
         })
     }
+}
+
+export async function getFeedItemByIdentifiers(channelId: string, guid: string): Promise<FeedItem | null> {
+    const queryData = await prisma.feed_item.findFirst({
+        where: {
+            OR: [
+                {
+                    channel_id: channelId,
+                    guid: guid,
+                },
+                {
+                    channel_id: channelId,
+                    id: guid,
+                },
+                {
+                    id: guid,
+                },
+            ],
+        },
+    }) as FeedItemDto | null
+
+    if (!queryData) {
+        return null
+    }
+
+    return mapFeedItemDtoToFeedItem({
+        ...queryData,
+        count: 0,
+        exclude_feed_id: '',
+        country: queryData.country || '',
+    })
 }

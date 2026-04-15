@@ -16,6 +16,8 @@ const prismaMock = {
 
 const getPodcastEpisodeInfoMock = mock();
 const createOrUpdateFeedItemMock = mock();
+const getFeedItemByIdentifiersMock = mock();
+const getSpotifyEpisodeDetailMock = mock();
 const generateFeedItemIdMock = mock();
 const generateIDMock = mock();
 const formatDateTimeMock = mock();
@@ -30,8 +32,13 @@ mock.module('../../utils/itunes', () => ({
     getPodcastEpisodeInfo: getPodcastEpisodeInfoMock,
 }));
 
+mock.module('../../utils/spotify', () => ({
+    getSpotifyEpisodeDetail: getSpotifyEpisodeDetailMock,
+}));
+
 mock.module('../../db/feed_item', () => ({
     createOrUpdateFeedItem: createOrUpdateFeedItemMock,
+    getFeedItemByIdentifiers: getFeedItemByIdentifiersMock,
 }));
 
 mock.module('../../utils/common', () => ({
@@ -48,7 +55,9 @@ mock.module('../../db/listen_later', () => ({
 describe('addEpisodeToListenLater()', () => {
     beforeEach(() => {
         getPodcastEpisodeInfoMock.mockReset();
+        getSpotifyEpisodeDetailMock.mockReset();
         createOrUpdateFeedItemMock.mockReset();
+        getFeedItemByIdentifiersMock.mockReset();
         prismaMock.user_listen_later.findFirst.mockReset();
         prismaMock.user_listen_later.create.mockReset();
         generateFeedItemIdMock.mockReset();
@@ -97,6 +106,7 @@ describe('addEpisodeToListenLater()', () => {
     };
 
     it('should successfully add episode to listen later', async () => {
+        getFeedItemByIdentifiersMock.mockResolvedValue(null);
         // Mock podcast episode info
         getPodcastEpisodeInfoMock.mockResolvedValue({
             episode: mockFeedItem,
@@ -125,6 +135,7 @@ describe('addEpisodeToListenLater()', () => {
     });
 
     it('should throw error when podcast episode not found', async () => {
+        getFeedItemByIdentifiersMock.mockResolvedValue(null);
         getPodcastEpisodeInfoMock.mockResolvedValue({ episode: null, podcast: null });
 
         expect(addEpisodeToListenLater(mockRequest))
@@ -132,6 +143,7 @@ describe('addEpisodeToListenLater()', () => {
     });
 
     it('should throw error when episode already added', async () => {
+        getFeedItemByIdentifiersMock.mockResolvedValue(null);
         getPodcastEpisodeInfoMock.mockResolvedValue({
             episode: mockFeedItem,
             podcast: {} as any
@@ -153,6 +165,7 @@ describe('addEpisodeToListenLater()', () => {
     });
 
     it('should throw error when database creation fails', async () => {
+        getFeedItemByIdentifiersMock.mockResolvedValue(null);
         getPodcastEpisodeInfoMock.mockResolvedValue({
             episode: mockFeedItem,
             podcast: {} as any
@@ -169,6 +182,36 @@ describe('addEpisodeToListenLater()', () => {
 
         await expect(addEpisodeToListenLater(mockRequest))
             .rejects.toThrow('Something went wrong');
+    });
+
+    it('reuses stored feed items without calling provider lookups', async () => {
+        getFeedItemByIdentifiersMock.mockResolvedValue({ ...mockFeedItem, Source: '' });
+        generateFeedItemIdMock.mockResolvedValue('generated-feed-item-id');
+        generateFeedItemIdMock.mockResolvedValueOnce('generated-channel-id');
+        prismaMock.user_listen_later.findFirst.mockResolvedValue(null);
+        generateIDMock.mockResolvedValue('generated-id');
+        prismaMock.user_listen_later.create.mockResolvedValue({} as any);
+
+        const result = await addEpisodeToListenLater({
+            ...mockRequest,
+            channelId: 'internal-channel-id',
+            itemId: 'xmly_track_123',
+            source: 'xmly',
+        });
+
+        expect(result).toBe('Done');
+        expect(getPodcastEpisodeInfoMock).not.toHaveBeenCalled();
+        expect(getSpotifyEpisodeDetailMock).not.toHaveBeenCalled();
+        expect(createOrUpdateFeedItemMock).toHaveBeenCalledWith(expect.objectContaining({ Source: 'xmly' }));
+    });
+
+    it('rejects unknown sources when no stored feed item exists', async () => {
+        getFeedItemByIdentifiersMock.mockResolvedValue(null);
+
+        await expect(addEpisodeToListenLater({
+            ...mockRequest,
+            source: 'xmly',
+        })).rejects.toThrow('Podcast Episode not found');
     });
 });
 

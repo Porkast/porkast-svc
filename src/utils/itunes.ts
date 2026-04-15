@@ -135,7 +135,10 @@ export const buildFeedItemAndKeywordInputList = async (keyword: string, country:
 export const getPodcastEpisodeInfo = async (podcastId: string, episodeId: string): Promise<{ podcast: FeedChannel, episode: FeedItem }> => {
     const res = await fetch(`https://itunes.apple.com/lookup?id=${podcastId}&entity=podcast`)
     const jsonResp = await res.json()
-    const podcastInfo = jsonResp.results[0]
+    const podcastInfo = jsonResp?.results?.[0]
+    if (!podcastInfo?.feedUrl) {
+        throw new Error('Podcast Episode not found')
+    }
     const feedLink = podcastInfo.feedUrl
     const rss = await parsePodcastRSS(feedLink);
     const episodeInfo = buildFeedItemModel(rss, feedLink, episodeId, podcastId);

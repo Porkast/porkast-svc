@@ -1,5 +1,5 @@
-import { createOrUpdateFeedItem } from "../../db/feed_item";
-import { FeedChannel, FeedItem } from "../../models/feeds";
+import { createOrUpdateFeedItem, getFeedItemByIdentifiers } from "../../db/feed_item";
+import { FeedItem } from "../../models/feeds";
 import { formatDateTime, generateFeedItemId, generateID } from "../../utils/common";
 import { getPodcastEpisodeInfo } from "../../utils/itunes";
 import { AddPodcastToListenLaterRequest } from "./types";
@@ -12,23 +12,30 @@ import { PODCAST_SOURCES } from "../../models/types";
 
 
 export async function addEpisodeToListenLater(request: AddPodcastToListenLaterRequest): Promise<String> {
-    let itemInfoResp;
-    let feedItem: FeedItem
-    if (request.source == PODCAST_SOURCES.ITUNES) {
-        itemInfoResp = await getPodcastEpisodeInfo(request.channelId, request.itemId)
-        if (!itemInfoResp?.episode) {
-            const message = 'Podcast Episode not found'
-            throw new Error(message)
+    const normalizedSource = request.source?.trim().toLowerCase() || PODCAST_SOURCES.ITUNES
+    let feedItem: FeedItem | null = await getFeedItemByIdentifiers(request.channelId, request.itemId)
+
+    if (!feedItem) {
+        if (normalizedSource === PODCAST_SOURCES.ITUNES) {
+            const itemInfoResp = await getPodcastEpisodeInfo(request.channelId, request.itemId)
+            if (!itemInfoResp?.episode) {
+                const message = 'Podcast Episode not found'
+                throw new Error(message)
+            }
+            feedItem = itemInfoResp.episode
+        } else if (normalizedSource === PODCAST_SOURCES.SPOTIFY) {
+            feedItem = await getSpotifyEpisodeDetail(request.itemId)
+        } else {
+            throw new Error('Podcast Episode not found')
         }
-        feedItem = itemInfoResp.episode
-    } else {
-        feedItem = await getSpotifyEpisodeDetail(request.itemId)
     }
 
-    if (!itemInfoResp) {
+    if (!feedItem) {
         const message = 'Podcast Episode not found'
         throw new Error(message)
     }
+
+    feedItem.Source = feedItem.Source || normalizedSource
 
     feedItem.Id = await generateFeedItemId(feedItem.FeedLink, feedItem.Title)
     feedItem.ChannelId = await generateFeedItemId(feedItem.FeedLink, feedItem.ChannelTitle)

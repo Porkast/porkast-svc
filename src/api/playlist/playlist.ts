@@ -1,4 +1,4 @@
-import { createOrUpdateFeedItem } from "../../db/feed_item";
+import { createOrUpdateFeedItem, getFeedItemByIdentifiers } from "../../db/feed_item";
 import { queryPlaylistByPlaylistId, queryPlaylistItemsByPlaylistId, queryUserPlaylistListByUserId } from "../../db/playlist";
 import prisma from "../../db/prisma.client";
 import { FeedItem } from "../../models/feeds";
@@ -43,19 +43,29 @@ export async function addPodcastToPlaylist(playlistId: string, channelId: string
         throw new Error(message)
     }
 
-    let itemInfoResp;
-    let feedItem: FeedItem
-    if (source == PODCAST_SOURCES.ITUNES) {
-        itemInfoResp = await getPodcastEpisodeInfo(channelId, guid)
-        feedItem = itemInfoResp.episode
-    } else {
-        feedItem = await getSpotifyEpisodeDetail(guid)
+    const normalizedSource = source?.trim().toLowerCase() || PODCAST_SOURCES.ITUNES
+    let feedItem: FeedItem | null = await getFeedItemByIdentifiers(channelId, guid)
+    if (!feedItem) {
+        if (normalizedSource == PODCAST_SOURCES.ITUNES) {
+            const itemInfoResp = await getPodcastEpisodeInfo(channelId, guid)
+            if (!itemInfoResp?.episode) {
+                const message = 'Podcast Episode not found'
+                throw new Error(message)
+            }
+            feedItem = itemInfoResp.episode
+        } else if (normalizedSource === PODCAST_SOURCES.SPOTIFY) {
+            feedItem = await getSpotifyEpisodeDetail(guid)
+        } else {
+            throw new Error('Podcast Episode not found')
+        }
     }
 
-    if (!itemInfoResp) {
+    if (!feedItem) {
         const message = 'Podcast Episode not found'
         throw new Error(message)
     }
+
+    feedItem.Source = feedItem.Source || normalizedSource
 
     feedItem.Id = await generateFeedItemId(feedItem.FeedLink, feedItem.Title)
     feedItem.ChannelId = await generateFeedItemId(feedItem.FeedLink, feedItem.ChannelTitle)
