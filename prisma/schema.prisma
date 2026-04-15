@@ -349,7 +349,7 @@ model feed_item {
   explicit         String?   @db.VarChar(64)
   season           String?   @db.VarChar(64)
   episodetype      String?   @db.VarChar(64)
-  description      String?
+  description      Bytes?
   channel_title    String?
   feed_id          String    @db.VarChar(64)
   feed_link        String?   @db.VarChar(255)
