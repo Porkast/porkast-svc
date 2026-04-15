@@ -1,14 +1,15 @@
+import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { AddPodcastToListenLaterRequest } from "./types";
+import { AddPodcastToListenLaterRequest, AddPodcastToListenLaterSchema } from "./types";
 import { addEpisodeToListenLater, getUserListenLaterList } from "./listen_later";
 import { UserListenLaterDto } from "../../models/listen_later";
 import { DEFAULT_PODCAST_SOURCE } from "../../models/types";
 
 export const listenLaterRoute = new Hono()
 
-listenLaterRoute.post('', async (c) => {
+listenLaterRoute.post('', zValidator('json', AddPodcastToListenLaterSchema), async (c) => {
     
-    const body: AddPodcastToListenLaterRequest = await c.req.json();
+    const body: AddPodcastToListenLaterRequest = c.req.valid('json');
     if (!body.source) {
         body.source = DEFAULT_PODCAST_SOURCE
     }

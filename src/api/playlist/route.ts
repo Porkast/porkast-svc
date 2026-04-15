@@ -83,7 +83,7 @@ playlistRoute.get('/:playlistId', async (c) => {
 
 playlistRoute.post('/item', zValidator('json', AddPodcastToPlaylistSchema), async (c) => {
 
-    const body: AddPodcastToPlaylistRequestData = await c.req.json();
+    const body: AddPodcastToPlaylistRequestData = c.req.valid('json');
     try {
         const message = await addPodcastToPlaylist(body.playlistId, body.channelId, body.source || DEFAULT_PODCAST_SOURCE, body.guid)
         return c.json({
