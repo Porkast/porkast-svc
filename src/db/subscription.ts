@@ -361,6 +361,73 @@ export async function queryKeywordSubscriptionFeedItemList(userId: string, keywo
     return [resultList, totalCount]
 }
 
+function mapSubscriptionFeedItem(queryResult: FeedItemDto, totalCount: number): FeedItem {
+    return {
+        Id: queryResult.id,
+        FeedId: queryResult.feed_id,
+        GUID: queryResult.guid || '',
+        ChannelId: queryResult.channel_id,
+        Title: queryResult.title || '',
+        HighlightTitle: queryResult.title || '',
+        Link: queryResult.link || '',
+        PubDate: formatDateTime(queryResult.pub_date?.toString() || new Date().toString()),
+        Author: queryResult.author || '',
+        InputDate: queryResult.input_date || new Date(),
+        ImageUrl: queryResult.image_url || '',
+        EnclosureUrl: queryResult.enclosure_url || '',
+        EnclosureLength: queryResult.enclosure_length || '0',
+        EnclosureType: queryResult.enclosure_type || '',
+        Description: decodeDatabaseText(queryResult.description),
+        Source: queryResult.source || '',
+        Country: queryResult.country || '',
+        ExcludeFeedId: queryResult.exclude_feed_id || '',
+        Duration: queryResult.duration || '',
+        Episode: queryResult.episode || '',
+        Explicit: queryResult.explicit || '',
+        Season: queryResult.season || '',
+        EpisodeType: queryResult.enclosure_type || '',
+        TextDescription: '',
+        ChannelImageUrl: '',
+        ChannelTitle: queryResult.channel_title || '',
+        HighlightChannelTitle: '',
+        FeedLink: queryResult.feed_link || '',
+        Count: totalCount,
+        TookTime: 0,
+        HasThumbnail: true
+    }
+}
+
+export async function queryUserAllKeywordSubscriptionFeedItemList(userId: string, offset: number, limit: number): Promise<FeedItem[]> {
+    const queryResultList = await prisma.$queryRaw<FeedItemDto[]>(
+        Prisma.sql`
+        WITH matched_items AS (
+            SELECT
+                fi.id,
+                MAX(ks.create_time) AS latest_update_time,
+                (ARRAY_AGG(ks.exclude_feed_id ORDER BY ks.create_time DESC NULLS LAST, ks.id DESC))[1] AS exclude_feed_id,
+                (ARRAY_AGG(ks.country ORDER BY ks.create_time DESC NULLS LAST, ks.id DESC))[1] AS country
+            FROM feed_item fi
+            INNER JOIN keyword_subscription ks ON (fi.id = ks.feed_item_id)
+            INNER JOIN user_subscription usk ON (usk.keyword = ks.keyword and usk.country = ks.country and usk.exclude_feed_id = ks.exclude_feed_id and usk.source = ks.source)
+            WHERE usk.user_id = ${userId} and usk.status = 1
+            GROUP BY fi.id
+        )
+        SELECT
+            fi.*,
+            matched_items.exclude_feed_id,
+            matched_items.country,
+            COUNT(*) OVER()::int AS count
+        FROM feed_item fi
+        INNER JOIN matched_items ON matched_items.id = fi.id
+        ORDER BY matched_items.latest_update_time DESC NULLS LAST, fi.input_date DESC NULLS LAST, fi.id DESC
+        LIMIT ${limit}
+        OFFSET ${offset}
+        `
+    )
+
+    return queryResultList.map((queryResult) => mapSubscriptionFeedItem(queryResult, queryResult.count || 0))
+}
+
 
 export async function queryUserKeywordSubscriptionDetail(userId: string, keyword: string): Promise<SubscriptionDataDto> {
 
