@@ -2,7 +2,8 @@ import { KeywordSubscribeRequestData } from "./types";
 import prisma from "../../db/prisma.client";
 import { Prisma } from "@prisma/client";
 import { v4 as uuidv4 } from 'uuid';
-import { doSearchSubscription, queryUserKeywordSubscriptionList } from "../../db/subscription";
+import { FeedItem } from "../../models/feeds";
+import { doSearchSubscription, queryUserAllKeywordSubscriptionFeedItemList, queryUserKeywordSubscriptionList } from "../../db/subscription";
 import { SubscriptionDataDto } from "../../models/subscription";
 import { logger } from "../../utils/logger";
 
@@ -70,4 +71,10 @@ export async function getUserSubscriptionList(userId: string, limit: string, off
     const offsetInt = parseInt(offset)
     const resultDtos = await queryUserKeywordSubscriptionList(userId, offsetInt, limitInt)
     return resultDtos
+}
+
+export async function getUserSubscriptionEpisodeList(userId: string, limit: string, offset: string): Promise<FeedItem[]> {
+    const limitInt = parseInt(limit)
+    const offsetInt = parseInt(offset)
+    return queryUserAllKeywordSubscriptionFeedItemList(userId, offsetInt, limitInt)
 }

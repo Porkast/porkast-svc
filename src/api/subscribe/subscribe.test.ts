@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
-import { updateUserSubscription } from './subscribe';
+import { getUserSubscriptionEpisodeList, updateUserSubscription } from './subscribe';
 import type { PrismaClient } from '@prisma/client';
 import type { KeywordSubscribeRequestData } from './types';
 import { decodeDatabaseText } from '../../utils/text';
+import type { FeedItem } from '../../models/feeds';
 
 const mockPrisma = {
   user_subscription: {
@@ -33,12 +34,16 @@ const mockPrisma = {
 };
 
 const mockDoSearchSubscription = mock(async (keyword: string, country: string, source: string, excludeFeedId: string) => {});
+const mockQueryUserAllKeywordSubscriptionFeedItemList = mock(async () => []);
+const mockQueryUserKeywordSubscriptionList = mock(async () => []);
 
 mock.module('../../db/prisma.client', () => ({
   default: mockPrisma
 }));
 mock.module('../../db/subscription', () => ({
-  doSearchSubscription: mockDoSearchSubscription
+  doSearchSubscription: mockDoSearchSubscription,
+  queryUserAllKeywordSubscriptionFeedItemList: mockQueryUserAllKeywordSubscriptionFeedItemList,
+  queryUserKeywordSubscriptionList: mockQueryUserKeywordSubscriptionList,
 }));
 
 describe('updateUserSubscription', () => {
@@ -79,5 +84,62 @@ describe('updateUserSubscription', () => {
     const description = Buffer.from('小罐茶到底是不是大师造', 'utf8');
 
     expect(decodeDatabaseText(description)).toBe('小罐茶到底是不是大师造');
+  });
+});
+
+describe('getUserSubscriptionEpisodeList', () => {
+  beforeEach(() => {
+    mockQueryUserAllKeywordSubscriptionFeedItemList.mockReset();
+  });
+
+  it('passes through pagination to the aggregated keyword feed query', async () => {
+    mockQueryUserAllKeywordSubscriptionFeedItemList.mockResolvedValue([]);
+
+    const result = await getUserSubscriptionEpisodeList('user123', '10', '20');
+
+    expect(result).toEqual([]);
+    expect(mockQueryUserAllKeywordSubscriptionFeedItemList).toHaveBeenCalledWith('user123', 20, 10);
+  });
+
+  it('returns aggregated feed items', async () => {
+    const item: FeedItem = {
+      Id: 'episode1',
+      FeedId: 'feed1',
+      GUID: 'episode1',
+      ChannelId: 'channel1',
+      Title: 'Episode',
+      HighlightTitle: 'Episode',
+      Link: '',
+      PubDate: '2024-01-01',
+      Author: '',
+      InputDate: new Date('2024-01-01'),
+      ImageUrl: '',
+      EnclosureUrl: '',
+      EnclosureType: '',
+      EnclosureLength: '',
+      Duration: '',
+      Episode: '',
+      Explicit: '',
+      Season: '',
+      EpisodeType: '',
+      Description: '',
+      TextDescription: '',
+      ChannelImageUrl: '',
+      ChannelTitle: 'Channel',
+      HighlightChannelTitle: '',
+      FeedLink: '',
+      Count: 1,
+      Source: 'itunes',
+      ExcludeFeedId: '',
+      Country: 'US',
+      TookTime: 0,
+      HasThumbnail: true,
+    };
+
+    mockQueryUserAllKeywordSubscriptionFeedItemList.mockResolvedValue([item]);
+
+    const result = await getUserSubscriptionEpisodeList('user123', '10', '0');
+
+    expect(result).toEqual([item]);
   });
 });
