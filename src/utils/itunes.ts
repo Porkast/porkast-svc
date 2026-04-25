@@ -107,7 +107,7 @@ export const buildFeedItemAndKeywordInputList = async (keyword: string, country:
             episodetype: item.EpisodeType,
             explicit: item.Explicit,
             season: item.Season,
-            description: item.Description,
+            description: Buffer.from(item.Description || '', 'utf8'),
             channel_title: item.ChannelTitle,
             feed_link: item.FeedLink,
             source: item.Source,
