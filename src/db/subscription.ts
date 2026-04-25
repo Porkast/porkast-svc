@@ -206,7 +206,7 @@ export async function doSearchSubscription(keyword: string, country: string, sou
             season: item.Season,
             episodetype: item.EpisodeType,
             source: item.Source,
-            description: item.Description,
+            description: Buffer.from(item.Description || '', 'utf8'),
         }
 
         itemManyInput.push(itemInput);
