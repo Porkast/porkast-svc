@@ -419,7 +419,7 @@ export async function queryUserAllKeywordSubscriptionFeedItemList(userId: string
             COUNT(*) OVER()::int AS count
         FROM feed_item fi
         INNER JOIN matched_items ON matched_items.id = fi.id
-        ORDER BY matched_items.latest_update_time DESC NULLS LAST, fi.input_date DESC NULLS LAST, fi.id DESC
+        ORDER BY fi.pub_date DESC NULLS LAST, fi.id DESC
         LIMIT ${limit}
         OFFSET ${offset}
         `

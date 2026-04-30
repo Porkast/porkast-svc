@@ -11,6 +11,26 @@ import { buildFeedItemAndKeywordInputList, searchPodcastEpisodeFromItunes } from
 import { FeedItem } from "../models/feeds";
 import { PODCAST_SOURCES } from "../models/types";
 
+async function getLatestPubDateForSubscription(
+    keyword: string,
+    country: string,
+    source: string,
+    excludeFeedIds: string
+): Promise<Date | null> {
+    const result = await prisma.$queryRaw<Array<{ pub_date: Date | null }>>`
+        SELECT fi.pub_date
+        FROM feed_item fi
+        INNER JOIN keyword_subscription ks ON fi.id = ks.feed_item_id
+        WHERE ks.keyword = ${keyword}
+          AND ks.country = ${country}
+          AND ks.source = ${source}
+          AND ks.exclude_feed_id = ${excludeFeedIds}
+        ORDER BY fi.pub_date DESC
+        LIMIT 1
+    `
+    return result[0]?.pub_date || null
+}
+
 export async function updateUserSubscription() {
     const allUserSubs = await getAllUserSubscriptions();
     const updatePromises = allUserSubs.map(async (sub) => {
@@ -31,6 +51,21 @@ export async function updateUserSubscription() {
         if (!feedItemList || feedItemList.length === 0) {
             const errMsg = 'No search results with parameters \n' + JSON.stringify({ keyword, country, excludeFeedIds, source })
             logger.debug(errMsg)
+            return
+        }
+
+        const latestPubDate = await getLatestPubDateForSubscription(keyword, country, source, excludeFeedIds)
+        if (latestPubDate) {
+            feedItemList = feedItemList.filter(item => {
+                const itemDate = new Date(item.PubDate)
+                if (isNaN(itemDate.getTime())) return true
+                return itemDate > latestPubDate
+            })
+            logger.debug(`Filtered feed items by pub_date > ${latestPubDate.toISOString()}, remaining: ${feedItemList.length}`)
+        }
+
+        if (feedItemList.length === 0) {
+            logger.debug('No new feed items after pub_date filter for keyword: ' + keyword)
             return
         }
 
