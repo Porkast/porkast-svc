@@ -34,3 +34,17 @@ export const queryUserListenLaterTotalCount = async (userId: string): Promise<nu
     })
     return totalCount
 }
+
+export async function disableUserListenLaterItem(userId: string, itemId: string): Promise<boolean> {
+    const result = await prisma.user_listen_later.updateMany({
+        where: {
+            user_id: userId,
+            item_id: itemId,
+            status: 1
+        },
+        data: {
+            status: 0
+        }
+    })
+    return result.count > 0
+}

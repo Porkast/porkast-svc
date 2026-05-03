@@ -1,7 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { AddPodcastToPlaylistRequestData, AddPodcastToPlaylistSchema, CreatePlaylistRequestData, CreatePlaylistSchema } from "./types";
-import { addPodcastToPlaylist, createPlaylist, getPlaylistById, getPlaylistPodcastList, getUserPlaylistList } from "./playlist";
+import { addPodcastToPlaylist, createPlaylist, deletePlaylist, getPlaylistById, getPlaylistPodcastList, getUserPlaylistList } from "./playlist";
 import { DEFAULT_PODCAST_SOURCE } from "../../models/types";
 
 
@@ -97,4 +97,26 @@ playlistRoute.post('/item', zValidator('json', AddPodcastToPlaylistSchema), asyn
         })
     }
 
+})
+
+playlistRoute.delete('/:playlistId', async (c) => {
+    const playlistId = c.req.param('playlistId')
+    if (!playlistId) {
+        return c.json({
+            code: 1,
+            msg: 'Playlist Id is required'
+        })
+    }
+    try {
+        await deletePlaylist(playlistId)
+    } catch (error: Error | any) {
+        return c.json({
+            code: 1,
+            msg: error.message
+        })
+    }
+    return c.json({
+        code: 0,
+        msg: 'Playlist deleted'
+    })
 })

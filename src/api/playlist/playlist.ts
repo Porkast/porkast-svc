@@ -1,5 +1,5 @@
 import { createOrUpdateFeedItem, getFeedItemByIdentifiers } from "../../db/feed_item";
-import { queryPlaylistByPlaylistId, queryPlaylistItemsByPlaylistId, queryUserPlaylistListByUserId } from "../../db/playlist";
+import { queryPlaylistByPlaylistId, queryPlaylistItemsByPlaylistId, queryUserPlaylistListByUserId, disablePlaylist } from "../../db/playlist";
 import prisma from "../../db/prisma.client";
 import { FeedItem } from "../../models/feeds";
 import { UserPlaylistDto, UserPlaylistItemDto } from "../../models/playlist";
@@ -196,4 +196,9 @@ export async function getPlaylistPodcastList(userId: string, playlistId: string,
         userInfo,
         playlist
     }
+}
+
+export async function deletePlaylist(playlistId: string) {
+    const success = await disablePlaylist(playlistId)
+    if (!success) throw new Error('Playlist not found')
 }
