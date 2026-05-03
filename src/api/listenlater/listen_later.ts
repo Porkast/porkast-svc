@@ -5,7 +5,7 @@ import { getPodcastEpisodeInfo } from "../../utils/itunes";
 import { AddPodcastToListenLaterRequest } from "./types";
 import prisma from "../../db/prisma.client";
 import { UserListenLaterDto } from "../../models/listen_later";
-import { queryUserListenLaterList, queryUserListenLaterTotalCount } from "../../db/listen_later";
+import { queryUserListenLaterList, queryUserListenLaterTotalCount, disableUserListenLaterItem } from "../../db/listen_later";
 import { logger } from "../../utils/logger";
 import { getSpotifyEpisodeDetail } from "../../utils/spotify";
 import { PODCAST_SOURCES } from "../../models/types";
@@ -93,4 +93,9 @@ export async function getUserListenLaterList(userId: string, limit: number, offs
 
 
     return queryListData
+}
+
+export async function removeEpisodeFromListenLater(userId: string, itemId: string) {
+    const success = await disableUserListenLaterItem(userId, itemId)
+    if (!success) throw new Error('Listen later entry not found')
 }

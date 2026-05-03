@@ -1,7 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { AddPodcastToListenLaterRequest, AddPodcastToListenLaterSchema } from "./types";
-import { addEpisodeToListenLater, getUserListenLaterList } from "./listen_later";
+import { addEpisodeToListenLater, getUserListenLaterList, removeEpisodeFromListenLater } from "./listen_later";
 import { UserListenLaterDto } from "../../models/listen_later";
 import { DEFAULT_PODCAST_SOURCE } from "../../models/types";
 
@@ -56,5 +56,28 @@ listenLaterRoute.get('/list/:userId', async (c) => {
         code: 0,
         msg: 'Success',
         data: userListenLaterList
+    })
+})
+
+listenLaterRoute.delete('/:userId/:itemId', async (c) => {
+    const userId = c.req.param('userId')
+    const itemId = c.req.param('itemId')
+    if (!userId || !itemId) {
+        return c.json({
+            code: 1,
+            msg: 'User Id and Item Id are required'
+        })
+    }
+    try {
+        await removeEpisodeFromListenLater(userId, itemId)
+    } catch (error: Error | any) {
+        return c.json({
+            code: 1,
+            msg: error.message
+        })
+    }
+    return c.json({
+        code: 0,
+        msg: 'Removed'
     })
 })

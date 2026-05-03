@@ -126,3 +126,17 @@ export async function queryPlaylistItemsByPlaylistId(playlistId: string, offset:
 
     return resultList
 }
+
+export async function disablePlaylist(playlistId: string): Promise<boolean> {
+    const result = await prisma.user_playlist.updateMany({
+        where: {
+            id: playlistId,
+            status: 1
+        },
+        data: {
+            status: 0,
+            update_time: new Date()
+        }
+    })
+    return result.count > 0
+}
