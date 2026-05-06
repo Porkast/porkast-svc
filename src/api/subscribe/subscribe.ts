@@ -29,8 +29,10 @@ export async function updateUserSubscription(request: KeywordSubscribeRequestDat
         return 'Already subscribed'
     }
 
+    let userSubscription: { id: string } | null = null
+
     try {
-        await prisma.user_subscription.create({
+        userSubscription = await prisma.user_subscription.create({
             data: {
                 id: uuidv4(),
                 user_id: userId,
@@ -61,6 +63,42 @@ export async function updateUserSubscription(request: KeywordSubscribeRequestDat
     } catch (error) {
         logger.error(String(error))
         return "Something went wrong, please try again later"
+    }
+
+    try {
+        const [latestKs, totalCount] = await Promise.all([
+            prisma.keyword_subscription.findFirst({
+                where: {
+                    keyword: keyword,
+                    source: source,
+                    country: country,
+                    exclude_feed_id: excludeFeedId
+                },
+                orderBy: { id: 'desc' },
+                select: { id: true, create_time: true }
+            }),
+            prisma.keyword_subscription.count({
+                where: {
+                    keyword: keyword,
+                    source: source,
+                    country: country,
+                    exclude_feed_id: excludeFeedId
+                }
+            })
+        ])
+
+        if (latestKs?.id) {
+            await prisma.user_subscription.update({
+                where: { id: userSubscription!.id },
+                data: {
+                    latest_id: latestKs.id,
+                    update_time: latestKs.create_time,
+                    total_count: totalCount
+                }
+            })
+        }
+    } catch (error) {
+        logger.error(String(error))
     }
 
     return 'done'
