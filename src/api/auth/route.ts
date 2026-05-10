@@ -7,13 +7,30 @@ export const authRouter = new Hono();
 
 authRouter.post('/email-otp/request', zValidator('json', EmailOtpRequestSchema), async (c) => {
   const body: EmailOtpRequestData = await c.req.json();
-  const data = await createEmailOtpChallenge(body.email);
 
-  return c.json({
-    code: 0,
-    msg: 'If the email is eligible, an OTP has been sent',
-    data,
-  });
+  try {
+    const data = await createEmailOtpChallenge(body.email);
+    return c.json({
+      code: 0,
+      msg: 'If the email is eligible, an OTP has been sent',
+      data,
+    });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : '';
+    if (msg.startsWith('Resend too soon:')) {
+      const retryAfter = parseInt(msg.split(':')[1].trim());
+      return c.json({
+        code: 1,
+        msg: `Please wait ${retryAfter} seconds and try again.`,
+        error: 'RATE_LIMITED',
+        retryAfter,
+      }, 429);
+    }
+    return c.json({
+      code: 1,
+      msg: msg || 'Failed to send verification code',
+    }, 500);
+  }
 });
 
 authRouter.post('/email-otp/verify', zValidator('json', EmailOtpVerifySchema), async (c) => {

@@ -5,6 +5,7 @@ import { logger } from '../../utils/logger';
 import type { AuthUser, VerifyOtpResult } from './types';
 
 const OTP_EXPIRY_MINUTES = 10;
+const RESEND_COOLDOWN_SECONDS = 60;
 const SESSION_EXPIRY_DAYS = 30;
 const SESSION_PREFIX_LENGTH = 12;
 
@@ -49,6 +50,20 @@ export function getBearerToken(authorizationHeader?: string | null): string | nu
 export async function createEmailOtpChallenge(email: string) {
   const db = prisma as unknown as AuthPrismaClient;
   const normalizedEmail = normalizeEmail(email);
+
+  const recentToken = await db.verification_token.findFirst({
+    where: { email: normalizedEmail },
+    orderBy: { created_at: 'desc' },
+  });
+
+  if (recentToken) {
+    const elapsed = Math.floor((Date.now() - (recentToken as any).created_at.getTime()) / 1000);
+    const remaining = RESEND_COOLDOWN_SECONDS - elapsed;
+    if (remaining > 0) {
+      throw new Error(`Resend too soon: ${remaining}`);
+    }
+  }
+
   const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
@@ -70,7 +85,7 @@ export async function createEmailOtpChallenge(email: string) {
 
   return {
     expiresIn: OTP_EXPIRY_MINUTES * 60,
-    resendAfter: 60,
+    resendAfter: RESEND_COOLDOWN_SECONDS,
   };
 }
 
