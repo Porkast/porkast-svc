@@ -492,6 +492,25 @@ model user_subscription {
   @@schema("public")
 }
 
+model user_membership {
+  id                      String    @id @db.VarChar(64)
+  user_id                 String    @db.VarChar(64)
+  product_id              String    @db.VarChar(128)
+  tier                    String    @db.VarChar(32)
+  original_transaction_id String    @unique @db.VarChar(128)
+  latest_transaction_id   String?   @db.VarChar(128)
+  expires_date            DateTime? @db.Timestamp(6)
+  is_active               Boolean   @default(false)
+  will_renew              Boolean   @default(true)
+  is_in_billing_retry     Boolean   @default(false)
+  environment             String    @default("Production") @db.VarChar(16)
+  created_at              DateTime  @default(now()) @db.Timestamp(6)
+  updated_at              DateTime  @updatedAt @db.Timestamp(6)
+
+  @@index([user_id])
+  @@schema("public")
+}
+
 enum aal_level {
   aal1
   aal2

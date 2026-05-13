@@ -6,6 +6,7 @@ import { FeedItem } from "../../models/feeds";
 import { doSearchSubscription, queryUserAllKeywordSubscriptionFeedItemList, queryUserKeywordSubscriptionList } from "../../db/subscription";
 import { SubscriptionDataDto } from "../../models/subscription";
 import { logger } from "../../utils/logger";
+import { checkKeywordLimit } from "../membership/membership";
 
 
 export async function updateUserSubscription(request: KeywordSubscribeRequestData): Promise<String> {
@@ -15,6 +16,12 @@ export async function updateUserSubscription(request: KeywordSubscribeRequestDat
     const excludeFeedId = request.excludeFeedId || ''
     const source = request.source
     const sortByDate = request.sortByDate
+
+    // Enforce keyword subscription limit based on membership tier
+    const limitCheck = await checkKeywordLimit(userId)
+    if (!limitCheck.allowed) {
+        return `Keyword subscription limit reached (${limitCheck.used}/${limitCheck.limit}). Upgrade to add more.`
+    }
 
     const userSubscriptionRecord = await prisma.user_subscription.findFirst({
         where: {
