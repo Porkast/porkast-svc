@@ -46,10 +46,23 @@ export function getBearerToken(authorizationHeader?: string | null): string | nu
   return authorizationHeader.trim() || null;
 }
 
+function isDemoEmail(email: string): boolean {
+  const demoEmails = (process.env.DEMO_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return demoEmails.includes(email);
+}
+
+function getDemoCode(): string {
+  return (process.env.DEMO_CODE || '000000').padStart(6, '0').slice(0, 6);
+}
+
 export async function createEmailOtpChallenge(email: string) {
   const db = prisma as unknown as AuthPrismaClient;
   const normalizedEmail = normalizeEmail(email);
-  const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
+  const isDemo = isDemoEmail(normalizedEmail);
+  const code = isDemo ? getDemoCode() : randomInt(0, 1_000_000).toString().padStart(6, '0');
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
   await db.verification_token.deleteMany({
@@ -66,7 +79,11 @@ export async function createEmailOtpChallenge(email: string) {
     },
   });
 
-  await sendLoginOtpEmail(normalizedEmail, code, OTP_EXPIRY_MINUTES);
+  if (!isDemo) {
+    await sendLoginOtpEmail(normalizedEmail, code, OTP_EXPIRY_MINUTES);
+  } else {
+    logger.info(`Demo OTP requested for ${normalizedEmail}`);
+  }
 
   return {
     expiresIn: OTP_EXPIRY_MINUTES * 60,
@@ -133,6 +150,34 @@ export async function verifyEmailOtp(email: string, code: string, nickname?: str
         update_date: now,
       },
     });
+  }
+
+  // Auto-provision demo users with unlimited membership
+  if (isDemoEmail(normalizedEmail)) {
+    const demoTransactionId = `demo-${userInfo.id}`;
+    const demoExpires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+    await prisma.user_membership.upsert({
+      where: { original_transaction_id: demoTransactionId },
+      create: {
+        id: randomUUID(),
+        user_id: userInfo.id,
+        product_id: 'podcastsearch.unlimited',
+        tier: 'unlimited',
+        original_transaction_id: demoTransactionId,
+        expires_date: demoExpires,
+        is_active: true,
+        will_renew: false,
+        environment: 'Development',
+      },
+      update: {
+        tier: 'unlimited',
+        product_id: 'podcastsearch.unlimited',
+        expires_date: demoExpires,
+        is_active: true,
+        will_renew: false,
+      },
+    });
+    logger.info(`Demo user ${normalizedEmail} auto-provisioned unlimited membership`);
   }
 
   const sessionToken = buildSessionToken();
