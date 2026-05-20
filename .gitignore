@@ -10,3 +10,6 @@ node_modules/
 
 # drizzle meta
 drizzle/meta/
+
+# data migration output
+migrations/data/

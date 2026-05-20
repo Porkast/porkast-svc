@@ -5,7 +5,8 @@
     "deploy": "wrangler deploy",
     "test": "vitest",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:data-migrate": "DATABASE_URL=$(grep DATABASE_URL .env | cut -d= -f2-) npx tsx src/scripts/migrate-pg-to-d1.ts"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.7.2",
@@ -23,8 +24,10 @@
     "@cloudflare/workers-types": "^4.20250519.0",
     "@types/hogan.js": "^3.0.5",
     "@types/marked": "^6.0.0",
+    "@types/pg": "^8.20.0",
     "drizzle-kit": "^0.30.1",
+    "pg": "^8.21.0",
     "vitest": "^3.1.1",
-    "wrangler": "^4.14.0"
+    "wrangler": "^4.93.0"
   }
 }
