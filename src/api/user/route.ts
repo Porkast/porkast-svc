@@ -1,27 +1,31 @@
 import { Hono } from "hono"
 import { zValidator } from '@hono/zod-validator';
+import { eq, and, sql } from 'drizzle-orm';
 import { UserSyncRequestData, UserSyncSchema } from "./types";
 import { getUserInfoByTelegramId } from "../../db/user";
 import { syncUserData } from "./user";
-import prisma from "../../db/prisma.client";
 import { getBearerToken, getSessionUser } from "../auth/auth";
+import { userInfo, userSubscription, userListenLater, userPlaylist } from "../../db/schema";
+import { createDb } from "../../db/client";
+import type { Env } from "../../env";
 
-export const userRouter = new Hono()
+export const userRouter = new Hono<{ Bindings: Env }>()
 
 userRouter.get('/tele_id/:id', async (c) => {
     const telegramId = c.req.param('id')
-    const userInfo = await getUserInfoByTelegramId(telegramId)
+    const db = createDb(c.env.DB)
+    const user = await getUserInfoByTelegramId(db, telegramId)
 
     return c.json({
         code: 0,
         msg: 'Success',
-        data: userInfo
+        data: user
     })
 })
 
 userRouter.get('/info/:userId', async (c) => {
     const userId = c.req.param('userId')
-    
+
     if (!userId) {
         return c.json({
             code: 1,
@@ -29,18 +33,18 @@ userRouter.get('/info/:userId', async (c) => {
         })
     }
 
-    const queryData = await prisma.user_info.findUnique({
-        where: {
-            id: userId
-        }
-    })
+    const db = createDb(c.env.DB)
+    const queryData = await db
+        .select()
+        .from(userInfo)
+        .where(eq(userInfo.id, userId))
+        .limit(1)
 
-    if (queryData) {
-        queryData.password = ''
+    if (queryData.length > 0) {
         return c.json({
             code: 0,
             msg: 'OK',
-            data: queryData
+            data: { ...queryData[0], password: '' }
         })
     }
 
@@ -65,7 +69,7 @@ userRouter.get('/:userId/stats', async (c) => {
         return c.json({ code: 1, msg: 'Unauthorized' }, 401)
     }
 
-    const user = await getSessionUser(token)
+    const user = await getSessionUser(c.env, token)
     if (!user) {
         return c.json({ code: 1, msg: 'Invalid session' }, 401)
     }
@@ -74,25 +78,11 @@ userRouter.get('/:userId/stats', async (c) => {
         return c.json({ code: 1, msg: 'Forbidden' }, 403)
     }
 
+    const db = createDb(c.env.DB)
     const [subscriptionCount, listenLaterCount, playlistCount] = await Promise.all([
-        prisma.user_subscription.count({
-            where: {
-                user_id: userId,
-                status: 1
-            }
-        }),
-        prisma.user_listen_later.count({
-            where: {
-                user_id: userId,
-                status: 1
-            }
-        }),
-        prisma.user_playlist.count({
-            where: {
-                user_id: userId,
-                status: 1
-            }
-        })
+        db.select({ count: sql<number>`COUNT(*)` }).from(userSubscription).where(and(eq(userSubscription.userId, userId), eq(userSubscription.status, 1))).then(r => Number(r[0]?.count || 0)),
+        db.select({ count: sql<number>`COUNT(*)` }).from(userListenLater).where(and(eq(userListenLater.userId, userId), eq(userListenLater.status, 1))).then(r => Number(r[0]?.count || 0)),
+        db.select({ count: sql<number>`COUNT(*)` }).from(userPlaylist).where(and(eq(userPlaylist.userId, userId), eq(userPlaylist.status, 1))).then(r => Number(r[0]?.count || 0)),
     ])
 
     return c.json({
@@ -107,10 +97,10 @@ userRouter.get('/:userId/stats', async (c) => {
 })
 
 userRouter.post('/sync', zValidator('json', UserSyncSchema), async (c) => {
-
     const request: UserSyncRequestData = await c.req.json();
     try {
-        await syncUserData(request)
+        const db = createDb(c.env.DB)
+        await syncUserData(db, request)
     } catch (error) {
         return c.json({
             code: 1,

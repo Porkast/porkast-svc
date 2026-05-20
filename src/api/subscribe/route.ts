@@ -3,13 +3,15 @@ import { Hono } from "hono";
 import { KeywordSubscribeRequestData, KeywordSubscribeSchema } from "./types";
 import { getUserSubscriptionEpisodeList, getUserSubscriptionList, updateUserSubscription } from "./subscribe";
 import { disableUserKeywordSubscription, queryKeywordSubscriptionFeedItemList, queryUserKeywordSubscriptionDetail } from "../../db/subscription";
+import { createDb } from "../../db/client";
+import type { Env } from "../../env";
 
-
-export const subscribeRouter = new Hono()
+export const subscribeRouter = new Hono<{ Bindings: Env }>()
 
 subscribeRouter.post('/keyword', zValidator('json', KeywordSubscribeSchema), async (c) => {
     const request: KeywordSubscribeRequestData = await c.req.json();
-    const message = await updateUserSubscription(request)
+    const db = createDb(c.env.DB)
+    const message = await updateUserSubscription(db, request)
 
     return c.json({
         code: 0,
@@ -18,7 +20,6 @@ subscribeRouter.post('/keyword', zValidator('json', KeywordSubscribeSchema), asy
 })
 
 subscribeRouter.get('/list', async (c) => {
-
     const userId = c.req.query('userId')
     const limit = c.req.query('limit') || '10'
     const offset = c.req.query('offset') || '0'
@@ -28,7 +29,8 @@ subscribeRouter.get('/list', async (c) => {
             msg: 'User Id is required'
         })
     }
-    const data = await getUserSubscriptionList(userId, limit, offset)
+    const db = createDb(c.env.DB)
+    const data = await getUserSubscriptionList(db, userId, limit, offset)
 
     return c.json({
         code: 0,
@@ -49,7 +51,9 @@ subscribeRouter.get('/episodes/:userId', async (c) => {
         });
     }
 
+    const db = createDb(c.env.DB)
     const feedItemList = await getUserSubscriptionEpisodeList(
+        db,
         userId,
         limit,
         offset
@@ -69,9 +73,10 @@ subscribeRouter.get('/:userId/:keyword', async (c) => {
     const limit = 10;
     const offset = (Number(page) - 1) * limit;
 
+    const db = createDb(c.env.DB)
     let usInfo;
     try {
-        usInfo = await queryUserKeywordSubscriptionDetail(userId, keyword);
+        usInfo = await queryUserKeywordSubscriptionDetail(db, userId, keyword);
     } catch (error) {
         return c.json({
             code: 1,
@@ -80,12 +85,13 @@ subscribeRouter.get('/:userId/:keyword', async (c) => {
     }
 
     const [feedItemList] = await queryKeywordSubscriptionFeedItemList(
-        userId, 
-        keyword, 
-        usInfo.Source, 
-        usInfo.Country, 
-        usInfo.ExcludeFeedId, 
-        offset, 
+        db,
+        userId,
+        keyword,
+        usInfo.Source,
+        usInfo.Country,
+        usInfo.ExcludeFeedId,
+        offset,
         limit
     );
 
@@ -106,8 +112,9 @@ subscribeRouter.delete('/:userId/:keyword', async (c) => {
         data: null
     };
 
+    const db = createDb(c.env.DB)
     try {
-        const success = await disableUserKeywordSubscription(userId, keyword);
+        const success = await disableUserKeywordSubscription(db, userId, keyword);
         if (success) {
             resp.code = 0;
             resp.message = 'Subscription successfully disabled';

@@ -1,31 +1,16 @@
 import { createHash, randomBytes, randomInt, randomUUID } from 'crypto';
-import prisma from '../../db/prisma.client';
+import { eq, and, gt, desc, sql } from 'drizzle-orm';
+import { createDb } from '../../db/client';
+import { verificationToken, userInfo as userInfoTable, appSession, userMembership } from '../../db/schema';
 import { sendLoginOtpEmail } from '../../email/resend';
 import { logger } from '../../utils/logger';
 import type { AuthUser, VerifyOtpResult } from './types';
+import type { Env } from '../../env';
 
 const OTP_EXPIRY_MINUTES = 10;
 const RESEND_COOLDOWN_SECONDS = 60;
 const SESSION_EXPIRY_DAYS = 30;
 const SESSION_PREFIX_LENGTH = 12;
-
-type AuthPrismaClient = {
-  verification_token: {
-    deleteMany: (args: any) => Promise<any>;
-    create: (args: any) => Promise<any>;
-    findFirst: (args: any) => Promise<any>;
-  };
-  user_info: {
-    findFirst: (args: any) => Promise<any>;
-    create: (args: any) => Promise<any>;
-    update: (args: any) => Promise<any>;
-  };
-  app_session: {
-    create: (args: any) => Promise<any>;
-    findFirst: (args: any) => Promise<any>;
-    updateMany: (args: any) => Promise<any>;
-  };
-};
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -47,54 +32,54 @@ export function getBearerToken(authorizationHeader?: string | null): string | nu
   return authorizationHeader.trim() || null;
 }
 
-function isDemoEmail(email: string): boolean {
-  const demoEmails = (process.env.DEMO_EMAILS || '')
+function isDemoEmail(email: string, env: Env): boolean {
+  const demoEmails = (env.DEMO_EMAILS || '')
     .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
   return demoEmails.includes(email);
 }
 
-function getDemoCode(): string {
-  return (process.env.DEMO_CODE || '000000').padStart(6, '0').slice(0, 6);
+function getDemoCode(env: Env): string {
+  return (env.DEMO_CODE || '000000').padStart(6, '0').slice(0, 6);
 }
 
-export async function createEmailOtpChallenge(email: string) {
-  const db = prisma as unknown as AuthPrismaClient;
+export async function createEmailOtpChallenge(env: Env, email: string) {
+  const db = createDb(env.DB);
   const normalizedEmail = normalizeEmail(email);
-  const recentToken = await db.verification_token.findFirst({
-    where: { email: normalizedEmail },
-    orderBy: { created_at: 'desc' },
-  });
+  const recentToken = await db
+    .select()
+    .from(verificationToken)
+    .where(eq(verificationToken.email, normalizedEmail))
+    .orderBy(desc(verificationToken.createdAt))
+    .limit(1);
 
-  if (recentToken) {
-    const elapsed = Math.floor((Date.now() - (recentToken as any).created_at.getTime()) / 1000);
+  if (recentToken.length > 0) {
+    const elapsed = Math.floor((Date.now() - new Date(recentToken[0].createdAt).getTime()) / 1000);
     const remaining = RESEND_COOLDOWN_SECONDS - elapsed;
     if (remaining > 0) {
       throw new Error(`Resend too soon: ${remaining}`);
     }
   }
 
-  const isDemo = isDemoEmail(normalizedEmail);
-  const code = isDemo ? getDemoCode() : randomInt(0, 1_000_000).toString().padStart(6, '0');
+  const isDemo = isDemoEmail(normalizedEmail, env);
+  const code = isDemo ? getDemoCode(env) : randomInt(0, 1_000_000).toString().padStart(6, '0');
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-  await db.verification_token.deleteMany({
-    where: {
-      email: normalizedEmail,
-    },
-  });
+  await db
+    .delete(verificationToken)
+    .where(eq(verificationToken.email, normalizedEmail));
 
-  await db.verification_token.create({
-    data: {
-      email: normalizedEmail,
-      token: hashValue(code),
-      expires_at: expiresAt,
-    },
+  await db.insert(verificationToken).values({
+    id: randomUUID(),
+    email: normalizedEmail,
+    token: hashValue(code),
+    expiresAt: expiresAt.toISOString(),
+    createdAt: new Date().toISOString(),
   });
 
   if (!isDemo) {
-    await sendLoginOtpEmail(normalizedEmail, code, OTP_EXPIRY_MINUTES);
+    await sendLoginOtpEmail(env.RESEND_API_KEY, normalizedEmail, code, OTP_EXPIRY_MINUTES);
   } else {
     logger.info(`Demo OTP requested for ${normalizedEmail}`);
   }
@@ -105,109 +90,117 @@ export async function createEmailOtpChallenge(email: string) {
   };
 }
 
-export async function verifyEmailOtp(email: string, code: string, nickname?: string): Promise<VerifyOtpResult> {
-  const db = prisma as unknown as AuthPrismaClient;
+export async function verifyEmailOtp(env: Env, email: string, code: string, nickname?: string): Promise<VerifyOtpResult> {
+  const db = createDb(env.DB);
   const normalizedEmail = normalizeEmail(email);
   const hashedCode = hashValue(code);
   const now = new Date();
 
-  const tokenRecord = await db.verification_token.findFirst({
-    where: {
-      email: normalizedEmail,
-      token: hashedCode,
-      expires_at: {
-        gt: now,
-      },
-    },
-  });
+  const tokenRecord = await db
+    .select()
+    .from(verificationToken)
+    .where(
+      and(
+        eq(verificationToken.email, normalizedEmail),
+        eq(verificationToken.token, hashedCode),
+        gt(verificationToken.expiresAt, now.toISOString()),
+      )
+    )
+    .limit(1);
 
-  if (!tokenRecord) {
+  if (tokenRecord.length === 0) {
     throw new Error('Invalid or expired verification code');
   }
 
-  await db.verification_token.deleteMany({
-    where: {
-      email: normalizedEmail,
-    },
-  });
+  await db
+    .delete(verificationToken)
+    .where(eq(verificationToken.email, normalizedEmail));
 
-  let userInfo = await db.user_info.findFirst({
-    where: {
-      email: normalizedEmail,
-    },
-  });
+  let userRecords = await db
+    .select()
+    .from(userInfoTable)
+    .where(eq(userInfoTable.email, normalizedEmail))
+    .limit(1);
 
   let isNewUser = false;
   const finalNickname = sanitizeNickname(nickname, normalizedEmail);
+  let currentUser = userRecords[0];
 
-  if (!userInfo) {
+  if (!currentUser) {
     isNewUser = true;
-    userInfo = await db.user_info.create({
-      data: {
-        id: randomUUID(),
-        email: normalizedEmail,
-        nickname: finalNickname,
-        password: '',
-        phone: '',
-        avatar: '',
-        reg_date: now,
-        update_date: now,
-      },
+    const newId = randomUUID();
+    await db.insert(userInfoTable).values({
+      id: newId,
+      email: normalizedEmail,
+      nickname: finalNickname,
+      password: '',
+      phone: '',
+      avatar: '',
+      regDate: now.toISOString(),
+      updateDate: now.toISOString(),
     });
-  } else if ((!userInfo.nickname || userInfo.nickname.trim().length === 0) && finalNickname.length > 0) {
-    userInfo = await db.user_info.update({
-      where: {
-        id: userInfo.id,
-      },
-      data: {
-        nickname: finalNickname,
-        update_date: now,
-      },
-    });
+    const newUser = await db.select().from(userInfoTable).where(eq(userInfoTable.id, newId)).limit(1);
+    currentUser = newUser[0];
+  } else if ((!currentUser.nickname || currentUser.nickname.trim().length === 0) && finalNickname.length > 0) {
+    await db
+      .update(userInfoTable)
+      .set({ nickname: finalNickname, updateDate: now.toISOString() })
+      .where(eq(userInfoTable.id, currentUser.id));
+    currentUser.nickname = finalNickname;
   }
 
-  // Auto-provision demo users with unlimited membership
-  if (isDemoEmail(normalizedEmail)) {
-    const demoTransactionId = `demo-${userInfo.id}`;
-    const demoExpires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-    await prisma.user_membership.upsert({
-      where: { original_transaction_id: demoTransactionId },
-      create: {
+  if (isDemoEmail(normalizedEmail, env)) {
+    const demoTransactionId = `demo-${currentUser.id}`;
+    const demoExpires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    const existingDemo = await db
+      .select()
+      .from(userMembership)
+      .where(eq(userMembership.originalTransactionId, demoTransactionId))
+      .limit(1);
+
+    if (existingDemo.length > 0) {
+      await db
+        .update(userMembership)
+        .set({
+          tier: 'unlimited',
+          productId: 'podcastsearch.unlimited',
+          expiresDate: demoExpires,
+          isActive: true,
+          willRenew: false,
+        })
+        .where(eq(userMembership.originalTransactionId, demoTransactionId));
+    } else {
+      await db.insert(userMembership).values({
         id: randomUUID(),
-        user_id: userInfo.id,
-        product_id: 'podcastsearch.unlimited',
+        userId: currentUser.id,
+        productId: 'podcastsearch.unlimited',
         tier: 'unlimited',
-        original_transaction_id: demoTransactionId,
-        expires_date: demoExpires,
-        is_active: true,
-        will_renew: false,
+        originalTransactionId: demoTransactionId,
+        expiresDate: demoExpires,
+        isActive: true,
+        willRenew: false,
         environment: 'Development',
-      },
-      update: {
-        tier: 'unlimited',
-        product_id: 'podcastsearch.unlimited',
-        expires_date: demoExpires,
-        is_active: true,
-        will_renew: false,
-      },
-    });
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      });
+    }
     logger.info(`Demo user ${normalizedEmail} auto-provisioned unlimited membership`);
   }
 
   const sessionToken = buildSessionToken();
   const expiresAt = new Date(Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 
-  await db.app_session.create({
-    data: {
-      user_id: userInfo.id,
-      token_hash: hashValue(sessionToken),
-      expires_at: expiresAt,
-    },
+  await db.insert(appSession).values({
+    id: randomUUID(),
+    userId: currentUser.id,
+    tokenHash: hashValue(sessionToken),
+    expiresAt: expiresAt.toISOString(),
+    createdAt: now.toISOString(),
   });
 
   return {
     isNewUser,
-    user: mapAuthUser(userInfo),
+    user: mapAuthUser(currentUser),
     session: {
       token: sessionToken,
       expiresAt,
@@ -215,52 +208,54 @@ export async function verifyEmailOtp(email: string, code: string, nickname?: str
   };
 }
 
-export async function getSessionUser(token: string): Promise<AuthUser | null> {
-  const db = prisma as unknown as AuthPrismaClient;
+export async function getSessionUser(env: Env, token: string): Promise<AuthUser | null> {
+  const db = createDb(env.DB);
   const tokenHash = hashValue(token);
-  const now = new Date();
+  const now = new Date().toISOString();
 
-  const session = await db.app_session.findFirst({
-    where: {
-      token_hash: tokenHash,
-      revoked_at: null,
-      expires_at: {
-        gt: now,
-      },
-    },
-  });
+  const session = await db
+    .select()
+    .from(appSession)
+    .where(
+      and(
+        eq(appSession.tokenHash, tokenHash),
+        eq(appSession.revokedAt, null),
+        gt(appSession.expiresAt, now),
+      )
+    )
+    .limit(1);
 
-  if (!session) {
+  if (session.length === 0) {
     return null;
   }
 
-  const userInfo = await db.user_info.findFirst({
-    where: {
-      id: session.user_id,
-    },
-  });
+  const userRecords = await db
+    .select()
+    .from(userInfoTable)
+    .where(eq(userInfoTable.id, session[0].userId))
+    .limit(1);
 
-  if (!userInfo) {
-    logger.warn(`No user found for session ${session.id}`);
+  if (userRecords.length === 0) {
+    logger.warn(`No user found for session ${session[0].id}`);
     return null;
   }
 
-  return mapAuthUser(userInfo);
+  return mapAuthUser(userRecords[0]);
 }
 
-export async function revokeSession(token: string): Promise<void> {
-  const db = prisma as unknown as AuthPrismaClient;
+export async function revokeSession(env: Env, token: string): Promise<void> {
+  const db = createDb(env.DB);
   const tokenHash = hashValue(token);
 
-  await db.app_session.updateMany({
-    where: {
-      token_hash: tokenHash,
-      revoked_at: null,
-    },
-    data: {
-      revoked_at: new Date(),
-    },
-  });
+  await db
+    .update(appSession)
+    .set({ revokedAt: new Date().toISOString() })
+    .where(
+      and(
+        eq(appSession.tokenHash, tokenHash),
+        eq(appSession.revokedAt, null),
+      )
+    );
 }
 
 function buildSessionToken(): string {
@@ -276,20 +271,20 @@ function sanitizeNickname(nickname: string | undefined, email: string): string {
   return email.split('@')[0].slice(0, 128) || `listener-${randomBytes(6).toString('hex').slice(0, SESSION_PREFIX_LENGTH)}`;
 }
 
-function mapAuthUser(userInfo: {
+function mapAuthUser(user: {
   id: string;
-  telegram_id: string | null;
+  telegramId: string | null;
   nickname: string | null;
   email: string | null;
   phone: string | null;
   avatar: string | null;
 }): AuthUser {
   return {
-    userId: userInfo.id,
-    telegramId: userInfo.telegram_id || '',
-    nickname: userInfo.nickname || '',
-    email: userInfo.email || '',
-    phone: userInfo.phone || '',
-    avatar: userInfo.avatar || '',
+    userId: user.id,
+    telegramId: user.telegramId || '',
+    nickname: user.nickname || '',
+    email: user.email || '',
+    phone: user.phone || '',
+    avatar: user.avatar || '',
   };
 }

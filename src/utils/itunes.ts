@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client"
 import { FeedChannel, FeedItem } from "../models/feeds"
 import { convertMillsTimeToDuration, generateFeedItemId } from "./common"
 import { iTunesResponse, PodcastFeed, PodcastItem } from "../models/itunes"

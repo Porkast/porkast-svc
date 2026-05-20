@@ -1,3 +1,6 @@
+import type { createDb } from './client'
+export type DbClient = ReturnType<typeof createDb>
+
 export class UserAlreadyExistsError extends Error {
   constructor(telegramId: string) {
     super(`User with telegram ID ${telegramId} already exists`);

@@ -1,9 +1,5 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import teleBot from './telegram/bot.hook'
-import { IniteBakerJobs } from './jobs/job_register'
-import { marked } from 'marked'
-import { InitTelegramBot } from './telegram/bot.setup'
 import { userRouter } from './api/user/route'
 import { authRouter } from './api/auth/route'
 import { subscribeRouter } from './api/subscribe/route'
@@ -12,30 +8,30 @@ import { listenLaterRoute } from './api/listenlater/route'
 import { rssRoute } from './api/rss/route'
 import { membershipRouter } from './api/membership/route'
 import { webhookRouter } from './api/webhook/route'
-import { logger } from './utils/logger'
-import { printRoutesTable } from './utils/routes'
+import { dbMiddleware } from './db/middleware'
+import { handleSubscriptionUpdate } from './queues/subscription'
+import { handleCron } from './crons/user_sub_update'
+import teleBot from './telegram/bot.hook'
+import { setupTelegramWebhook } from './telegram/bot.setup'
+import { setSpotifyCredentials } from './utils/spotify'
+import type { Env } from './env'
 
-const app = new Hono()
-app.use(
-  cors({
-    origin: '*',
-    allowHeaders: [
-      'X-Custom-Header',
-      'Upgrade-Insecure-Requests',
-      'Content-Type',
-      'Authorization'
-    ],
-    allowMethods: ['POST', 'GET', 'PUT', 'DELETE', 'OPTIONS'],
-    maxAge: 600,
-  })
-);
-app.get('/', async (c) => {
-  const readme = await Bun.file('./README.md').text()
-  const readmeHtml = marked.parse(readme)
-  return c.html(readmeHtml)
+const app = new Hono<{ Bindings: Env }>()
+
+app.use(cors({
+  origin: '*',
+  allowHeaders: ['X-Custom-Header', 'Upgrade-Insecure-Requests', 'Content-Type', 'Authorization'],
+  allowMethods: ['POST', 'GET', 'PUT', 'DELETE', 'OPTIONS'],
+  maxAge: 600,
+}))
+
+app.use('*', dbMiddleware)
+
+app.use('*', async (c, next) => {
+  setSpotifyCredentials(c.env.SPOTIFY_CLIENT_ID, c.env.SPOTIFY_CLIENT_SECRET)
+  await next()
 })
 
-app.route('/telegram', teleBot)
 app.route('/api/user', userRouter)
 app.route('/api/auth', authRouter)
 app.route('/api/subscribe', subscribeRouter)
@@ -45,15 +41,14 @@ app.route('/api/rss', rssRoute)
 app.route('/api/membership', membershipRouter)
 app.route('/api/webhook', webhookRouter)
 
-InitTelegramBot()
-IniteBakerJobs()
+app.route('/telegram', teleBot)
 
-const routeMap: Map<string, string> = new Map()
-app.routes.forEach((route) => {
-  routeMap.set(route.path, route.method)
-});
+app.get('/', async (c) => {
+  return c.text('Porkast Service running on Cloudflare Workers')
+})
 
-logger.info('======== Routes ========')
-printRoutesTable(routeMap)
-logger.info('======== Routes ========')
-export default app
+export default {
+  fetch: app.fetch,
+  scheduled: handleCron,
+  queue: handleSubscriptionUpdate,
+} satisfies ExportedHandler<Env>

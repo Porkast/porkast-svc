@@ -1,6 +1,5 @@
 import { createOrUpdateFeedItem, getFeedItemByIdentifiers } from "../../db/feed_item";
 import { queryPlaylistByPlaylistId, queryPlaylistItemsByPlaylistId, queryUserPlaylistListByUserId, disablePlaylist } from "../../db/playlist";
-import prisma from "../../db/prisma.client";
 import { FeedItem } from "../../models/feeds";
 import { UserPlaylistDto, UserPlaylistItemDto } from "../../models/playlist";
 import { PODCAST_SOURCES } from "../../models/types";
@@ -9,16 +8,17 @@ import { getPodcastEpisodeInfo } from "../../utils/itunes";
 import { logger } from "../../utils/logger";
 import { getSpotifyEpisodeDetail } from "../../utils/spotify";
 import { UserInfo } from "../user/types";
+import type { DbClient } from "../../db/types";
+import { eq, sql } from 'drizzle-orm';
+import * as schema from '../../db/schema';
 
-export async function createPlaylist(userId: string, playlistName: string, description: string): Promise<String> {
+export async function createPlaylist(db: DbClient, userId: string, playlistName: string, description: string): Promise<String> {
     try {
-        await prisma.user_playlist.create({
-            data: {
-                id: await generatePlaylistId(playlistName, userId),
-                user_id: userId,
-                playlist_name: playlistName,
-                description: Buffer.from(description),
-            }
+        await db.insert(schema.userPlaylist).values({
+            id: await generatePlaylistId(playlistName, userId),
+            userId: userId,
+            playlistName: playlistName,
+            description: new TextEncoder().encode(description),
         })
     } catch (error) {
         logger.error('create playlist error', error)
@@ -28,23 +28,23 @@ export async function createPlaylist(userId: string, playlistName: string, descr
     return 'Done'
 }
 
-export async function getUserPlaylistList(userId: string, limit: string, offset: string): Promise<UserPlaylistDto[]> {
+export async function getUserPlaylistList(db: DbClient, userId: string, limit: string, offset: string): Promise<UserPlaylistDto[]> {
     const limitInt = parseInt(limit)
     const offsetInt = parseInt(offset)
-    const resultDtos = await queryUserPlaylistListByUserId(userId, offsetInt, limitInt)
+    const resultDtos = await queryUserPlaylistListByUserId(db, userId, offsetInt, limitInt)
     return resultDtos
 }
 
-export async function addPodcastToPlaylist(playlistId: string, channelId: string, source: string, guid: string): Promise<String> {
+export async function addPodcastToPlaylist(db: DbClient, playlistId: string, channelId: string, source: string, guid: string): Promise<String> {
 
-    const playlistInfo = await queryPlaylistByPlaylistId(playlistId)
+    const playlistInfo = await queryPlaylistByPlaylistId(db, playlistId)
     if (!playlistInfo) {
         const message = 'Playlist not found'
         throw new Error(message)
     }
 
     const normalizedSource = source?.trim().toLowerCase() || PODCAST_SOURCES.ITUNES
-    let feedItem: FeedItem | null = await getFeedItemByIdentifiers(channelId, guid)
+    let feedItem: FeedItem | null = await getFeedItemByIdentifiers(db, channelId, guid)
     if (!feedItem) {
         if (normalizedSource == PODCAST_SOURCES.ITUNES) {
             const itemInfoResp = await getPodcastEpisodeInfo(channelId, guid)
@@ -71,31 +71,29 @@ export async function addPodcastToPlaylist(playlistId: string, channelId: string
     feedItem.ChannelId = await generateFeedItemId(feedItem.FeedLink, feedItem.ChannelTitle)
 
     const playListeItemId = await generatePlaylistItemId(playlistId, feedItem.Id)
-    const playlistItemQueryResult = await prisma.user_playlist_item.findUnique({
-        where: {
-            id: playListeItemId
-        }
-    })
+    const playlistItemQueryResult = await db
+        .select()
+        .from(schema.userPlaylistItem)
+        .where(eq(schema.userPlaylistItem.id, playListeItemId))
+        .limit(1)
 
-    if (playlistItemQueryResult) {
+    if (playlistItemQueryResult.length > 0) {
         return 'Already exists'
     } else {
         try {
-            await createOrUpdateFeedItem(feedItem)
+            await createOrUpdateFeedItem(db, feedItem)
         } catch (error) {
             logger.error('store feed item for playlist error: ', error)
             throw new Error('Something went wrong')
         }
         try {
-            await prisma.user_playlist_item.create({
-                data: {
-                    id: playListeItemId,
-                    playlist_id: playlistId,
-                    item_id: feedItem.Id,
-                    channel_id: feedItem.ChannelId,
-                    reg_date: new Date(),
-                    status: 1
-                }
+            await db.insert(schema.userPlaylistItem).values({
+                id: playListeItemId,
+                playlistId: playlistId,
+                itemId: feedItem.Id,
+                channelId: feedItem.ChannelId,
+                regDate: new Date().toISOString(),
+                status: 1,
             })
         } catch (error) {
             const message = 'Something went wrong'
@@ -107,17 +105,17 @@ export async function addPodcastToPlaylist(playlistId: string, channelId: string
     return 'Done'
 }
 
-export async function getPlaylistById(playlistId: string): Promise<{ playlist: UserPlaylistDto, userInfo: UserInfo } | null> {
-    const playlistInfo = await queryPlaylistByPlaylistId(playlistId)
+export async function getPlaylistById(db: DbClient, playlistId: string): Promise<{ playlist: UserPlaylistDto, userInfo: UserInfo } | null> {
+    const playlistInfo = await queryPlaylistByPlaylistId(db, playlistId)
     if (!playlistInfo) {
         return null
     }
 
-    const totalCount = await prisma.user_playlist_item.count({
-        where: {
-            playlist_id: playlistId
-        }
-    })
+    const totalCount = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(schema.userPlaylistItem)
+        .where(eq(schema.userPlaylistItem.playlistId, playlistId))
+        .then(r => r[0]?.count || 0)
     playlistInfo.Count = totalCount
 
     let creatorId = ''
@@ -127,11 +125,13 @@ export async function getPlaylistById(playlistId: string): Promise<{ playlist: U
         creatorId = playlistInfo.CreatorId
     }
 
-    const creatorInfo = await prisma.user_info.findUnique({
-        where: {
-            id: creatorId
-        }
-    })
+    const creatorInfoResult = await db
+        .select()
+        .from(schema.userInfo)
+        .where(eq(schema.userInfo.id, creatorId))
+        .limit(1)
+
+    const creatorInfo = creatorInfoResult[0]
 
     if (!creatorInfo) {
         return null
@@ -139,14 +139,14 @@ export async function getPlaylistById(playlistId: string): Promise<{ playlist: U
 
     const userInfo: UserInfo = {
         userId: creatorInfo.id,
-        telegramId: creatorInfo.telegram_id || '',
+        telegramId: creatorInfo.telegramId || '',
         nickname: creatorInfo.nickname || '',
         password: '',
         email: creatorInfo.email || '',
         phone: creatorInfo.phone || '',
         avatar: creatorInfo.avatar || '',
-        regDate: creatorInfo.reg_date || new Date(),
-        updateDate: creatorInfo.update_date || new Date()
+        regDate: creatorInfo.regDate ? new Date(creatorInfo.regDate) : new Date(),
+        updateDate: creatorInfo.updateDate ? new Date(creatorInfo.updateDate) : new Date()
     }
 
     return {
@@ -155,42 +155,43 @@ export async function getPlaylistById(playlistId: string): Promise<{ playlist: U
     }
 }
 
-export async function getPlaylistPodcastList(userId: string, playlistId: string, limit: string, offset: string): Promise<{ userInfo: UserInfo, playlist: UserPlaylistItemDto[]}> {
+export async function getPlaylistPodcastList(db: DbClient, userId: string, playlistId: string, limit: string, offset: string): Promise<{ userInfo: UserInfo, playlist: UserPlaylistItemDto[]}> {
     const limitInt = parseInt(limit)
     const offsetInt = parseInt(offset)
-    const playlistInfoResult = await prisma.user_playlist_item.findFirst({
-        where: {
-            playlist_id: playlistId
-        }
-    })
+    const playlistInfoResult = await db
+        .select()
+        .from(schema.userPlaylistItem)
+        .where(eq(schema.userPlaylistItem.playlistId, playlistId))
+        .limit(1)
 
-    if (!playlistInfoResult) {
+    if (playlistInfoResult.length === 0) {
         throw new Error('Playlist not found')
     }
 
-    const userInfoResult = await prisma.user_info.findFirst({
-        where: {
-            id: userId
-        }
-    })
+    const userInfoRowResult = await db
+        .select()
+        .from(schema.userInfo)
+        .where(eq(schema.userInfo.id, userId))
+        .limit(1)
 
-    if (!userInfoResult) {
+    if (userInfoRowResult.length === 0) {
         throw new Error('User not found')
     }
 
+    const userInfoRow = userInfoRowResult[0]
     const userInfo: UserInfo = {
-        userId: userInfoResult?.id,
-        nickname: userInfoResult?.nickname || '',
-        email: userInfoResult?.email || '',
-        phone: userInfoResult?.phone || '',
-        avatar: userInfoResult?.avatar || '',
-        regDate: userInfoResult?.reg_date || new Date(),
-        updateDate: userInfoResult.update_date || new Date(),
+        userId: userInfoRow.id,
+        nickname: userInfoRow.nickname || '',
+        email: userInfoRow.email || '',
+        phone: userInfoRow.phone || '',
+        avatar: userInfoRow.avatar || '',
+        regDate: userInfoRow.regDate ? new Date(userInfoRow.regDate) : new Date(),
+        updateDate: userInfoRow.updateDate ? new Date(userInfoRow.updateDate) : new Date(),
         password: '',
-        telegramId: userInfoResult?.telegram_id || ''
+        telegramId: userInfoRow.telegramId || ''
     }
 
-    const playlist = await queryPlaylistItemsByPlaylistId(playlistId, offsetInt, limitInt)
+    const playlist = await queryPlaylistItemsByPlaylistId(db, playlistId, offsetInt, limitInt)
 
     return {
         userInfo,
@@ -198,7 +199,7 @@ export async function getPlaylistPodcastList(userId: string, playlistId: string,
     }
 }
 
-export async function deletePlaylist(playlistId: string) {
-    const success = await disablePlaylist(playlistId)
+export async function deletePlaylist(db: DbClient, playlistId: string) {
+    const success = await disablePlaylist(db, playlistId)
     if (!success) throw new Error('Playlist not found')
 }

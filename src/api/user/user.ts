@@ -1,50 +1,39 @@
-import { UserInfo as UserInfo, UserSyncRequestData, UserSyncSchema } from "./types";
-import prisma from "../../db/prisma.client";
-import { Prisma } from "@prisma/client";
+import { eq } from 'drizzle-orm'
+import { UserSyncRequestData } from "./types"
+import { userInfo } from "../../db/schema"
+import type { DbClient } from '../../db/types'
 
-export async function syncUserData(userData: UserSyncRequestData) {
-    
-    const queryData = await prisma.user_info.findUnique({
-        where: {
-            id: userData.userId
-        }
-    })
+export async function syncUserData(db: DbClient, userData: UserSyncRequestData) {
+    const existing = await db
+        .select()
+        .from(userInfo)
+        .where(eq(userInfo.id, userData.userId))
+        .limit(1)
 
-    if (queryData) {
-        const userInfoUpdate: Prisma.user_infoUpdateInput = {}
-        if (userData.nickname) {
-            userInfoUpdate.nickname = userData.nickname
-        }
-        if (userData.avatar) {
-            userInfoUpdate.avatar = userData.avatar
-        }
-        if (userData.phone) {
-            userInfoUpdate.phone = userData.phone
-        }
-        if (userData.password) {
-            userInfoUpdate.password = userData.password
-        }
-        userInfoUpdate.email = userData.email
-        userInfoUpdate.update_date = new Date()
-        await prisma.user_info.update({
-            where: {
-                id: userData.userId
-            },
-            data: userInfoUpdate
-        })
+    const now = new Date().toISOString()
+
+    if (existing.length > 0) {
+        const updateData: Record<string, any> = { updateDate: now }
+        if (userData.nickname) updateData.nickname = userData.nickname
+        if (userData.avatar) updateData.avatar = userData.avatar
+        if (userData.phone) updateData.phone = userData.phone
+        if (userData.password) updateData.password = userData.password
+        if (userData.email !== undefined) updateData.email = userData.email
+
+        await db
+            .update(userInfo)
+            .set(updateData)
+            .where(eq(userInfo.id, userData.userId))
     } else {
-        await prisma.user_info.create({
-            data: {
-                id: userData.userId,
-                nickname: userData.nickname,
-                password: userData.password,
-                email: userData.email,
-                phone: userData.phone,
-                avatar: userData.avatar,
-                reg_date: new Date(),
-                update_date: new Date(),
-            }
+        await db.insert(userInfo).values({
+            id: userData.userId,
+            nickname: userData.nickname || null,
+            password: userData.password || null,
+            email: userData.email || null,
+            phone: userData.phone || null,
+            avatar: userData.avatar || null,
+            regDate: now,
+            updateDate: now,
         })
     }
 }
-

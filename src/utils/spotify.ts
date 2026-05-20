@@ -1,6 +1,14 @@
 import { logger } from './logger';
 import { FeedItem, FeedChannel } from '../models/feeds';
 
+let spotifyClientIdOverride: string | null = null
+let spotifyClientSecretOverride: string | null = null
+
+export function setSpotifyCredentials(clientId: string, clientSecret: string) {
+    spotifyClientIdOverride = clientId
+    spotifyClientSecretOverride = clientSecret
+}
+
 interface SpotifyTokenResponse {
     access_token: string;
     token_type: string;
@@ -155,8 +163,8 @@ export async function getSpotifyAccessToken(clientId?: string, clientSecret?: st
     isFetchingToken = true;
 
     try {
-        const spotifyClientId = clientId || process.env.SPOTIFY_CLIENT_ID;
-        const spotifyClientSecret = clientSecret || process.env.SPOTIFY_CLIENT_SECRET;
+        const spotifyClientId = clientId || spotifyClientIdOverride || process.env.SPOTIFY_CLIENT_ID;
+        const spotifyClientSecret = clientSecret || spotifyClientSecretOverride || process.env.SPOTIFY_CLIENT_SECRET;
 
         if (!spotifyClientId || !spotifyClientSecret) {
             throw new SpotifyAuthError('Spotify client ID and secret are required. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables.');

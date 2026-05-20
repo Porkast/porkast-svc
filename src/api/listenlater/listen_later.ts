@@ -1,19 +1,20 @@
 import { createOrUpdateFeedItem, getFeedItemByIdentifiers } from "../../db/feed_item";
 import { FeedItem } from "../../models/feeds";
-import { formatDateTime, generateFeedItemId, generateID } from "../../utils/common";
+import { formatDateTime, generateFeedItemId } from "../../utils/common";
 import { getPodcastEpisodeInfo } from "../../utils/itunes";
 import { AddPodcastToListenLaterRequest } from "./types";
-import prisma from "../../db/prisma.client";
+import type { DbClient } from "../../db/types";
+import { eq, and } from 'drizzle-orm';
+import * as schema from '../../db/schema';
 import { UserListenLaterDto } from "../../models/listen_later";
 import { queryUserListenLaterList, queryUserListenLaterTotalCount, disableUserListenLaterItem } from "../../db/listen_later";
 import { logger } from "../../utils/logger";
 import { getSpotifyEpisodeDetail } from "../../utils/spotify";
 import { PODCAST_SOURCES } from "../../models/types";
 
-
-export async function addEpisodeToListenLater(request: AddPodcastToListenLaterRequest): Promise<String> {
+export async function addEpisodeToListenLater(db: DbClient, request: AddPodcastToListenLaterRequest): Promise<String> {
     const normalizedSource = request.source?.trim().toLowerCase() || PODCAST_SOURCES.ITUNES
-    let feedItem: FeedItem | null = await getFeedItemByIdentifiers(request.channelId, request.itemId)
+    let feedItem: FeedItem | null = await getFeedItemByIdentifiers(db, request.channelId, request.itemId)
 
     if (!feedItem) {
         if (normalizedSource === PODCAST_SOURCES.ITUNES) {
@@ -40,30 +41,32 @@ export async function addEpisodeToListenLater(request: AddPodcastToListenLaterRe
     feedItem.Id = await generateFeedItemId(feedItem.FeedLink, feedItem.Title)
     feedItem.ChannelId = await generateFeedItemId(feedItem.FeedLink, feedItem.ChannelTitle)
 
-    await createOrUpdateFeedItem(feedItem)
+    await createOrUpdateFeedItem(db, feedItem)
 
-    const queryData = await prisma.user_listen_later.findFirst({
-        where: {
-            user_id: request.userId,
-            channel_id: feedItem.ChannelId,
-            item_id: feedItem.Id,
-        },
-    })
+    const queryData = await db
+        .select()
+        .from(schema.userListenLater)
+        .where(
+            and(
+                eq(schema.userListenLater.userId, request.userId),
+                eq(schema.userListenLater.channelId, feedItem.ChannelId),
+                eq(schema.userListenLater.itemId, feedItem.Id),
+            )
+        )
+        .limit(1)
 
-    if (queryData) {
+    if (queryData.length > 0) {
         throw new Error('Already added')
     }
 
     try {
-        await prisma.user_listen_later.create({
-            data: {
-                id: await generateID(),
-                user_id: request.userId,
-                channel_id: feedItem.ChannelId,
-                item_id: feedItem.Id,
-                reg_date: new Date(),
-                status: 1,
-            }
+        await db.insert(schema.userListenLater).values({
+            id: crypto.randomUUID(),
+            userId: request.userId,
+            channelId: feedItem.ChannelId,
+            itemId: feedItem.Id,
+            regDate: new Date().toISOString(),
+            status: 1,
         })
     } catch (error) {
         logger.error('Adding podcast to listen later: ', error);
@@ -73,12 +76,12 @@ export async function addEpisodeToListenLater(request: AddPodcastToListenLaterRe
     return 'Done'
 }
 
-export async function getUserListenLaterList(userId: string, limit: number, offset: number): Promise<UserListenLaterDto[]> {
+export async function getUserListenLaterList(db: DbClient, userId: string, limit: number, offset: number): Promise<UserListenLaterDto[]> {
     let queryListData: UserListenLaterDto[]
     let totalCount: number
     try {
-        queryListData = await queryUserListenLaterList(userId, limit, offset)
-        totalCount = await queryUserListenLaterTotalCount(userId)
+        queryListData = await queryUserListenLaterList(db, userId, limit, offset)
+        totalCount = await queryUserListenLaterTotalCount(db, userId)
     } catch (error) {
         logger.error(`Query listen later list by userId ${userId}, offset ${offset}, limit ${limit} failed:`, error)
         throw new Error('Something went wrong')
@@ -91,11 +94,10 @@ export async function getUserListenLaterList(userId: string, limit: number, offs
         listenLaterDto.reg_date = formatDateTime(listenLaterDto.reg_date)
     }
 
-
     return queryListData
 }
 
-export async function removeEpisodeFromListenLater(userId: string, itemId: string) {
-    const success = await disableUserListenLaterItem(userId, itemId)
+export async function removeEpisodeFromListenLater(db: DbClient, userId: string, itemId: string) {
+    const success = await disableUserListenLaterItem(db, userId, itemId)
     if (!success) throw new Error('Listen later entry not found')
 }

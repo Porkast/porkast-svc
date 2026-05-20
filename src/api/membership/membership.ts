@@ -1,5 +1,6 @@
-import prisma from "../../db/prisma.client"
-import { v4 as uuidv4 } from "uuid"
+import type { DbClient } from "../../db/types"
+import { eq, and, desc, sql } from 'drizzle-orm'
+import * as schema from '../../db/schema'
 import {
   JWSTransactionDecoded,
   MembershipStatusResult,
@@ -36,6 +37,7 @@ function resolveTier(productId: string): string {
 }
 
 export async function syncMembership(
+  db: DbClient,
   signedTransaction: string,
   environment: string
 ): Promise<MembershipStatusResult> {
@@ -44,55 +46,59 @@ export async function syncMembership(
   const tier = resolveTier(productId)
   const originalTransactionId = decoded.originalTransactionId
   const latestTransactionId = decoded.transactionId
-  const expiresDate = decoded.expiresDate
+  const expiresDateObj = decoded.expiresDate
     ? new Date(decoded.expiresDate)
     : null
   const isRevoked = decoded.revocationDate != null
   const now = new Date()
-  const isActive = !isRevoked && expiresDate != null && expiresDate > now
-  const willRenew = decoded.offerType !== 1 // type 1 = introductory, but we check revocation instead
+  const isActive = !isRevoked && expiresDateObj != null && expiresDateObj > now
+  const willRenew = decoded.offerType !== 1
 
-  // Find the user who owns this transaction. For new purchases, we need userId from auth context.
-  // We'll look up existing membership by original_transaction_id.
-  // If not found, this is a new purchase — the route handler will extract userId from auth.
-  const existing = await prisma.user_membership.findUnique({
-    where: { original_transaction_id: originalTransactionId },
-  })
+  const existingResult = await db
+    .select()
+    .from(schema.userMembership)
+    .where(eq(schema.userMembership.originalTransactionId, originalTransactionId))
+    .limit(1)
+
+  const existing = existingResult[0] || null
 
   let userId: string
   if (existing) {
-    userId = existing.user_id
+    userId = existing.userId
   } else {
-    // For new purchases, userId must be provided separately via route handler
     throw new Error(
       "Membership not found. Provide userId for new purchases."
     )
   }
 
   const membershipData = {
-    user_id: userId,
-    product_id: productId,
+    userId,
+    productId,
     tier,
-    original_transaction_id: originalTransactionId,
-    latest_transaction_id: latestTransactionId,
-    expires_date: expiresDate,
-    is_active: isActive,
-    will_renew: willRenew,
-    is_in_billing_retry: false,
+    originalTransactionId,
+    latestTransactionId,
+    expiresDate: expiresDateObj?.toISOString() ?? null,
+    isActive,
+    willRenew,
+    isInBillingRetry: false,
     environment,
   }
 
   if (existing) {
-    await prisma.user_membership.update({
-      where: { id: existing.id },
-      data: membershipData,
-    })
+    await db
+      .update(schema.userMembership)
+      .set({
+        ...membershipData,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(schema.userMembership.id, existing.id))
   }
 
-  return getUserMembershipStatus(userId)
+  return getUserMembershipStatus(db, userId)
 }
 
 export async function syncMembershipForUser(
+  db: DbClient,
   signedTransaction: string,
   environment: string,
   userId: string
@@ -102,74 +108,97 @@ export async function syncMembershipForUser(
   const tier = resolveTier(productId)
   const originalTransactionId = decoded.originalTransactionId
   const latestTransactionId = decoded.transactionId
-  const expiresDate = decoded.expiresDate
+  const expiresDateObj = decoded.expiresDate
     ? new Date(decoded.expiresDate)
     : null
   const isRevoked = decoded.revocationDate != null
   const now = new Date()
-  const isActive = !isRevoked && expiresDate != null && expiresDate > now
+  const isActive = !isRevoked && expiresDateObj != null && expiresDateObj > now
 
-  const existing = await prisma.user_membership.findFirst({
-    where: { original_transaction_id: originalTransactionId },
-  })
+  const existingResult = await db
+    .select()
+    .from(schema.userMembership)
+    .where(eq(schema.userMembership.originalTransactionId, originalTransactionId))
+    .limit(1)
+
+  const existing = existingResult[0] || null
+
+  const nowISO = new Date().toISOString()
 
   const membershipData = {
-    user_id: userId,
-    product_id: productId,
+    userId,
+    productId,
     tier,
-    original_transaction_id: originalTransactionId,
-    latest_transaction_id: latestTransactionId,
-    expires_date: expiresDate,
-    is_active: isActive,
-    will_renew: true,
-    is_in_billing_retry: false,
+    originalTransactionId,
+    latestTransactionId,
+    expiresDate: expiresDateObj?.toISOString() ?? null,
+    isActive,
+    willRenew: true,
+    isInBillingRetry: false,
     environment,
   }
 
   if (existing) {
-    if (existing.user_id !== userId) {
+    if (existing.userId !== userId) {
       throw new Error("Transaction belongs to a different user")
     }
-    await prisma.user_membership.update({
-      where: { id: existing.id },
-      data: membershipData,
-    })
-  } else {
-    await prisma.user_membership.create({
-      data: {
-        id: uuidv4(),
+    await db
+      .update(schema.userMembership)
+      .set({
         ...membershipData,
-      },
+        updatedAt: nowISO,
+      })
+      .where(eq(schema.userMembership.id, existing.id))
+  } else {
+    await db.insert(schema.userMembership).values({
+      id: crypto.randomUUID(),
+      ...membershipData,
+      createdAt: nowISO,
+      updatedAt: nowISO,
     })
   }
 
-  return getUserMembershipStatus(userId)
+  return getUserMembershipStatus(db, userId)
 }
 
 export async function getUserMembershipStatus(
+  db: DbClient,
   userId: string
 ): Promise<MembershipStatusResult> {
-  const membership = await prisma.user_membership.findFirst({
-    where: {
-      user_id: userId,
-      is_active: true,
-      expires_date: { gt: new Date() },
-    },
-    orderBy: { expires_date: "desc" },
-  })
+  const membershipResult = await db
+    .select()
+    .from(schema.userMembership)
+    .where(
+      and(
+        eq(schema.userMembership.userId, userId),
+        eq(schema.userMembership.isActive, true),
+        sql`${schema.userMembership.expiresDate} > ${new Date().toISOString()}`,
+      )
+    )
+    .orderBy(desc(schema.userMembership.expiresDate))
+    .limit(1)
 
-  const keywordsUsed = await prisma.user_subscription.count({
-    where: { user_id: userId, status: 1 },
-  })
+  const membership = membershipResult[0] || null
+
+  const keywordsUsed = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(schema.userSubscription)
+    .where(
+      and(
+        eq(schema.userSubscription.userId, userId),
+        eq(schema.userSubscription.status, 1),
+      )
+    )
+    .then(r => r[0]?.count || 0)
 
   if (membership) {
     const tier = membership.tier
     return {
       tier,
-      productId: membership.product_id,
-      expiresDate: membership.expires_date?.toISOString() ?? null,
+      productId: membership.productId,
+      expiresDate: membership.expiresDate?.toString() ?? null,
       isActive: true,
-      willRenew: membership.will_renew,
+      willRenew: membership.willRenew,
       keywordsLimit: TIER_KEYWORDS_LIMIT[tier] ?? null,
       keywordsUsed,
     }
@@ -186,27 +215,29 @@ export async function getUserMembershipStatus(
   }
 }
 
-export async function getUserTier(userId: string): Promise<string> {
-  const status = await getUserMembershipStatus(userId)
+export async function getUserTier(db: DbClient, userId: string): Promise<string> {
+  const status = await getUserMembershipStatus(db, userId)
   return status.tier
 }
 
 export async function getUserKeywordsLimit(
+  db: DbClient,
   userId: string
 ): Promise<number | null> {
-  const status = await getUserMembershipStatus(userId)
+  const status = await getUserMembershipStatus(db, userId)
   return status.keywordsLimit
 }
 
-export async function getUserKeywordsUsed(userId: string): Promise<number> {
-  const status = await getUserMembershipStatus(userId)
+export async function getUserKeywordsUsed(db: DbClient, userId: string): Promise<number> {
+  const status = await getUserMembershipStatus(db, userId)
   return status.keywordsUsed
 }
 
 export async function checkKeywordLimit(
+  db: DbClient,
   userId: string
 ): Promise<{ allowed: boolean; limit: number | null; used: number }> {
-  const status = await getUserMembershipStatus(userId)
+  const status = await getUserMembershipStatus(db, userId)
   const limit = status.keywordsLimit
   const used = status.keywordsUsed
   if (limit === null) {

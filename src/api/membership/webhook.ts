@@ -1,9 +1,11 @@
-import prisma from "../../db/prisma.client"
 import { logger } from "../../utils/logger"
 import {
   PRODUCT_TIER_MAP,
   TIER_KEYWORDS_LIMIT,
 } from "./types"
+import { eq, and } from 'drizzle-orm'
+import * as schema from '../../db/schema'
+import type { DbClient } from '../../db/types'
 
 interface NotificationPayload {
   notificationType: string
@@ -57,6 +59,7 @@ function resolveTier(productId: string): string {
 }
 
 export async function handleAppStoreNotification(
+  db: DbClient,
   signedPayload: string
 ): Promise<void> {
   const notification = decodeJWSPayload<NotificationPayload>(signedPayload)
@@ -88,9 +91,13 @@ export async function handleAppStoreNotification(
   const tier = resolveTier(productId)
   const environment = transactionInfo.environment ?? "Production"
 
-  const membership = await prisma.user_membership.findUnique({
-    where: { original_transaction_id: originalTransactionId },
-  })
+  const membershipResult = await db
+    .select()
+    .from(schema.userMembership)
+    .where(eq(schema.userMembership.originalTransactionId, originalTransactionId))
+    .limit(1)
+
+  const membership = membershipResult[0]
 
   if (!membership) {
     logger.warn(
@@ -101,33 +108,33 @@ export async function handleAppStoreNotification(
 
   switch (notification.notificationType) {
     case "SUBSCRIBED":
-      await handleSubscribed(membership.id, transactionInfo, tier, environment)
+      await handleSubscribed(db, membership.id, transactionInfo, tier, environment)
       break
 
     case "DID_CHANGE_RENEWAL_STATUS":
     case "DID_CHANGE_RENEWAL_PREF":
-      await handleRenewalChange(membership.id, transactionInfo, renewalInfo, tier)
+      await handleRenewalChange(db, membership.id, transactionInfo, renewalInfo, tier)
       break
 
     case "DID_FAIL_TO_RENEW":
-      await handleFailedRenew(membership.id, transactionInfo)
+      await handleFailedRenew(db, membership.id, transactionInfo)
       break
 
     case "DID_RENEW":
-      await handleRenew(membership.id, transactionInfo, tier)
+      await handleRenew(db, membership.id, transactionInfo, tier)
       break
 
     case "EXPIRED":
-      await handleExpired(membership.id, transactionInfo)
+      await handleExpired(db, membership.id, transactionInfo)
       break
 
     case "REFUND":
     case "REVOKE":
-      await handleRevocation(membership.id, transactionInfo)
+      await handleRevocation(db, membership.id, transactionInfo)
       break
 
     case "OFFER_REDEEMED":
-      await handleSubscribed(membership.id, transactionInfo, tier, environment)
+      await handleSubscribed(db, membership.id, transactionInfo, tier, environment)
       break
 
     default:
@@ -138,6 +145,7 @@ export async function handleAppStoreNotification(
 }
 
 async function handleSubscribed(
+  db: DbClient,
   membershipId: string,
   tx: TransactionInfo,
   tier: string,
@@ -146,24 +154,24 @@ async function handleSubscribed(
   const expiresDate = tx.expiresDate ? new Date(tx.expiresDate) : null
   const isActive = tx.revocationDate == null && expiresDate != null && expiresDate > new Date()
 
-  await prisma.user_membership.update({
-    where: { id: membershipId },
-    data: {
+  await db.update(schema.userMembership)
+    .set({
       tier,
-      product_id: tx.productId,
-      latest_transaction_id: tx.transactionId,
-      expires_date: expiresDate,
-      is_active: isActive,
-      will_renew: true,
-      is_in_billing_retry: false,
+      productId: tx.productId,
+      latestTransactionId: tx.transactionId,
+      expiresDate: expiresDate?.toISOString() ?? null,
+      isActive,
+      willRenew: true,
+      isInBillingRetry: false,
       environment,
-    },
-  })
+    })
+    .where(eq(schema.userMembership.id, membershipId))
 
   logger.info(`Membership subscribed: id=${membershipId} tier=${tier} expires=${expiresDate?.toISOString() ?? "none"}`)
 }
 
 async function handleRenew(
+  db: DbClient,
   membershipId: string,
   tx: TransactionInfo,
   tier: string
@@ -171,23 +179,23 @@ async function handleRenew(
   const expiresDate = tx.expiresDate ? new Date(tx.expiresDate) : null
   const isActive = expiresDate != null && expiresDate > new Date()
 
-  await prisma.user_membership.update({
-    where: { id: membershipId },
-    data: {
+  await db.update(schema.userMembership)
+    .set({
       tier,
-      product_id: tx.productId,
-      latest_transaction_id: tx.transactionId,
-      expires_date: expiresDate,
-      is_active: isActive,
-      will_renew: true,
-      is_in_billing_retry: false,
-    },
-  })
+      productId: tx.productId,
+      latestTransactionId: tx.transactionId,
+      expiresDate: expiresDate?.toISOString() ?? null,
+      isActive,
+      willRenew: true,
+      isInBillingRetry: false,
+    })
+    .where(eq(schema.userMembership.id, membershipId))
 
   logger.info(`Membership renewed: id=${membershipId} tier=${tier} expires=${expiresDate?.toISOString() ?? "none"}`)
 }
 
 async function handleRenewalChange(
+  db: DbClient,
   membershipId: string,
   tx: TransactionInfo,
   renewal: RenewalInfo | null,
@@ -196,22 +204,20 @@ async function handleRenewalChange(
   const expiresDate = tx.expiresDate ? new Date(tx.expiresDate) : null
   const isActive = tx.revocationDate == null && expiresDate != null && expiresDate > new Date()
 
-  // Handle upgrade/downgrade by checking if productId changed
   const resolvedTier = tier
   const resolvedProductId = renewal?.autoRenewProductId ?? tx.productId
 
-  await prisma.user_membership.update({
-    where: { id: membershipId },
-    data: {
+  await db.update(schema.userMembership)
+    .set({
       tier: resolveTier(resolvedProductId),
-      product_id: resolvedProductId,
-      latest_transaction_id: tx.transactionId,
-      expires_date: expiresDate,
-      is_active: isActive,
-      will_renew: renewal?.autoRenewStatus === 1,
-      is_in_billing_retry: renewal?.isInBillingRetryPeriod ?? false,
-    },
-  })
+      productId: resolvedProductId,
+      latestTransactionId: tx.transactionId,
+      expiresDate: expiresDate?.toISOString() ?? null,
+      isActive,
+      willRenew: renewal?.autoRenewStatus === 1,
+      isInBillingRetry: renewal?.isInBillingRetryPeriod ?? false,
+    })
+    .where(eq(schema.userMembership.id, membershipId))
 
   logger.info(
     `Membership renewal changed: id=${membershipId} productId=${resolvedProductId} willRenew=${renewal?.autoRenewStatus === 1}`
@@ -219,55 +225,55 @@ async function handleRenewalChange(
 }
 
 async function handleFailedRenew(
+  db: DbClient,
   membershipId: string,
   tx: TransactionInfo
 ) {
   const expiresDate = tx.expiresDate ? new Date(tx.expiresDate) : null
 
-  await prisma.user_membership.update({
-    where: { id: membershipId },
-    data: {
-      latest_transaction_id: tx.transactionId,
-      expires_date: expiresDate,
-      will_renew: false,
-      is_in_billing_retry: true,
-    },
-  })
+  await db.update(schema.userMembership)
+    .set({
+      latestTransactionId: tx.transactionId,
+      expiresDate: expiresDate?.toISOString() ?? null,
+      willRenew: false,
+      isInBillingRetry: true,
+    })
+    .where(eq(schema.userMembership.id, membershipId))
 
   logger.warn(`Membership renewal failed: id=${membershipId}`)
 }
 
 async function handleExpired(
+  db: DbClient,
   membershipId: string,
   tx: TransactionInfo
 ) {
-  await prisma.user_membership.update({
-    where: { id: membershipId },
-    data: {
-      latest_transaction_id: tx.transactionId,
-      expires_date: tx.expiresDate ? new Date(tx.expiresDate) : undefined,
-      is_active: false,
-      will_renew: false,
-      is_in_billing_retry: false,
-    },
-  })
+  await db.update(schema.userMembership)
+    .set({
+      latestTransactionId: tx.transactionId,
+      expiresDate: tx.expiresDate ? new Date(tx.expiresDate).toISOString() : null,
+      isActive: false,
+      willRenew: false,
+      isInBillingRetry: false,
+    })
+    .where(eq(schema.userMembership.id, membershipId))
 
   logger.info(`Membership expired: id=${membershipId}`)
 }
 
 async function handleRevocation(
+  db: DbClient,
   membershipId: string,
   tx: TransactionInfo
 ) {
-  await prisma.user_membership.update({
-    where: { id: membershipId },
-    data: {
-      latest_transaction_id: tx.transactionId,
-      is_active: false,
-      will_renew: false,
-      is_in_billing_retry: false,
-    },
-  })
+  await db.update(schema.userMembership)
+    .set({
+      latestTransactionId: tx.transactionId,
+      isActive: false,
+      willRenew: false,
+      isInBillingRetry: false,
+    })
+    .where(eq(schema.userMembership.id, membershipId))
 
   logger.info(`Membership revoked/refunded: id=${membershipId} reason=${tx.revocationReason ?? "unknown"}`)
 }
