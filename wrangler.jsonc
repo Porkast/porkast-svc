@@ -1,0 +1,54 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "porkast-svc",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-05-14",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "triggers": {
+    "crons": ["0 * * * *"]
+  },
+
+  "queues": {
+    "producers": [
+      {
+        "queue": "porkast-sub-update",
+        "binding": "SUB_UPDATE_QUEUE"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "porkast-sub-update",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 3,
+        "dead_letter_queue": "porkast-sub-update-dlq"
+      }
+    ]
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "porkast-db",
+      "database_id": "REPLACE_WITH_ACTUAL_D1_ID"
+    }
+  ],
+
+  "kv_namespaces": [
+    {
+      "binding": "TELEGRAM_STATE",
+      "id": "REPLACE_WITH_ACTUAL_KV_ID"
+    }
+  ],
+
+  "vars": {
+    "PORKAST_WEB_BASE_URL": "https://porkast.com",
+    "TELE_MINI_APP_LINK": "https://t.me/porkast_bot/app",
+    "NODE_ENV": "production"
+  },
+
+  "limits": {
+    "cpu_ms": 300000
+  }
+}
