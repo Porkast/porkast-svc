@@ -3,6 +3,7 @@ import { convertMillsTimeToDuration, generateFeedItemId } from "./common"
 import { iTunesResponse, PodcastFeed, PodcastItem } from "../models/itunes"
 import Parser = require("rss-parser")
 import { logger } from "./logger"
+import { feedItem, keywordSubscription } from "../db/schema"
 
 
 export const searchPodcastEpisodeFromItunes = async (q: string, entity: string, country: string, excludeFeedId: string, offset: number, limit: number, totalCount: number): Promise<FeedItem[]> => {
@@ -79,47 +80,47 @@ export const searchPodcastEpisodeFromItunes = async (q: string, entity: string, 
     return items.slice(offset, offset + limit)
 }
 
-export const buildFeedItemAndKeywordInputList = async (keyword: string, country: string, excludeFeedIds: string, source: string, feedItemList: FeedItem[]): Promise<{ feedItemList: Prisma.feed_itemCreateManyInput[], keywordSubscriptionList: Prisma.keyword_subscriptionCreateManyInput[] }> => {
-    const feedItemCreateInputList: Prisma.feed_itemCreateManyInput[] = []
-    const keywordSubscriptionInputList: Prisma.keyword_subscriptionCreateManyInput[] = []
+export const buildFeedItemAndKeywordInputList = async (keyword: string, country: string, excludeFeedIds: string, source: string, feedItemList: FeedItem[]): Promise<{ feedItemList: typeof feedItem.$inferInsert[], keywordSubscriptionList: typeof keywordSubscription.$inferInsert[] }> => {
+    const feedItemCreateInputList: typeof feedItem.$inferInsert[] = []
+    const keywordSubscriptionInputList: typeof keywordSubscription.$inferInsert[] = []
 
 
     for (const item of feedItemList) {
         const itemId = await generateFeedItemId(item.FeedLink, item.Title)
         const channelId = await generateFeedItemId(item.FeedLink, item.ChannelTitle)
-        const feedItemInput: Prisma.feed_itemCreateManyInput = {
+        const feedItemInput: typeof feedItem.$inferInsert = {
             id: itemId,
-            channel_id: channelId,
-            feed_id: String(item.FeedId),
+            channelId: channelId,
+            feedId: String(item.FeedId),
             guid: item.GUID,
             title: item.Title,
             link: item.Link,
-            pub_date: new Date(item.PubDate),
+            pubDate: item.PubDate,
             author: item.Author,
-            input_date: new Date(),
-            image_url: item.ImageUrl,
-            enclosure_url: item.EnclosureUrl,
-            enclosure_type: item.EnclosureType,
-            enclosure_length: String(item.EnclosureLength),
+            inputDate: new Date().toISOString(),
+            imageUrl: item.ImageUrl,
+            enclosureUrl: item.EnclosureUrl,
+            enclosureType: item.EnclosureType,
+            enclosureLength: String(item.EnclosureLength),
             duration: item.Duration,
             episode: item.Episode,
             episodetype: item.EpisodeType,
             explicit: item.Explicit,
             season: item.Season,
-            description: Buffer.from(item.Description || '', 'utf8'),
-            channel_title: item.ChannelTitle,
-            feed_link: item.FeedLink,
+            description: new TextEncoder().encode(item.Description || ''),
+            channelTitle: item.ChannelTitle,
+            feedLink: item.FeedLink,
             source: item.Source,
         }
 
-        const keywordSubscriptionInput: Prisma.keyword_subscriptionCreateInput = {
+        const keywordSubscriptionInput: typeof keywordSubscription.$inferInsert = {
             keyword: keyword,
-            feed_channel_id: channelId,
-            feed_item_id: itemId,
-            create_time: new Date(),
+            feedChannelId: channelId,
+            feedItemId: itemId,
+            createTime: new Date().toISOString(),
             country: country,
             source: source,
-            exclude_feed_id: excludeFeedIds
+            excludeFeedId: excludeFeedIds,
         }
 
         feedItemCreateInputList.push(feedItemInput)

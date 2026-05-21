@@ -12,6 +12,11 @@ import type { NotificationParams } from '../models/subscription'
 import type { FeedItem as FeedItemType } from '../models/feeds'
 import { PODCAST_SOURCES } from '../models/types'
 import type { Env, SubscriptionUpdateMessage } from '../env'
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size))
+  return chunks
+}
 
 async function getLatestPubDateForSubscription(
   db: ReturnType<typeof createDb>,
@@ -80,7 +85,10 @@ export async function handleSubscriptionUpdate(
       const model = await buildFeedItemAndKeywordInputList(keyword, country, excludeFeedId, source, feedItemList)
 
       try {
-        await db.insert(keywordSubscription).values(model.keywordSubscriptionList)
+        const ksChunks = chunkArray(model.keywordSubscriptionList, 14)
+        for (const chunk of ksChunks) {
+          await db.insert(keywordSubscription).values(chunk)
+        }
       } catch (e: any) {
         if (e?.message?.includes('UNIQUE constraint failed')) {
           logger.warn('UNIQUE constraint violation for keyword_subscription, ignoring')
@@ -90,7 +98,10 @@ export async function handleSubscriptionUpdate(
       }
 
       try {
-        await db.insert(feedItem).values(model.feedItemList)
+        const fiChunks = chunkArray(model.feedItemList, 4)
+        for (const chunk of fiChunks) {
+          await db.insert(feedItem).values(chunk)
+        }
       } catch (e: any) {
         if (e?.message?.includes('UNIQUE constraint failed')) {
           logger.warn('UNIQUE constraint violation for feed_item, ignoring')
