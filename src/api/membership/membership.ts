@@ -198,7 +198,7 @@ export async function getUserMembershipStatus(
       productId: membership.productId,
       expiresDate: membership.expiresDate?.toString() ?? null,
       isActive: true,
-      willRenew: membership.willRenew,
+      willRenew: membership.willRenew ?? true,
       keywordsLimit: TIER_KEYWORDS_LIMIT[tier] ?? null,
       keywordsUsed,
     }

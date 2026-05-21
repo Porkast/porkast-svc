@@ -82,16 +82,38 @@ export async function getFeedItemByIdentifiers(
         eq(schema.feedItem.id, guid),
       )
     )
-    .limit(1) as FeedItemDto[]
+    .limit(1)
 
   if (queryResult.length === 0) {
     return null
   }
 
+  const row = queryResult[0]
   return mapFeedItemDtoToFeedItem({
-    ...queryResult[0],
+    id: row.id,
+    channel_id: row.channelId,
+    guid: row.guid,
+    title: row.title,
+    link: row.link,
+    pub_date: row.pubDate ? new Date(row.pubDate) : null,
+    author: row.author,
+    input_date: row.inputDate ? new Date(row.inputDate) : null,
+    image_url: row.imageUrl,
+    enclosure_url: row.enclosureUrl,
+    enclosure_type: row.enclosureType,
+    enclosure_length: row.enclosureLength,
+    duration: row.duration,
+    episode: row.episode,
+    explicit: row.explicit,
+    season: row.season,
+    episodeType: row.episodetype,
+    description: row.description as Buffer | null | undefined,
+    channel_title: row.channelTitle,
+    feed_id: row.feedId,
+    feed_link: row.feedLink,
+    source: row.source,
     count: 0,
     exclude_feed_id: '',
-    country: queryResult[0].country || '',
+    country: '',
   })
 }

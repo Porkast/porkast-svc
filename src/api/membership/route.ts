@@ -8,7 +8,7 @@ import type { Env } from '../../env'
 import { createDb } from '../../db/client'
 import { createHash } from 'crypto'
 import { appSession } from '../../db/schema'
-import { eq, and, gt } from 'drizzle-orm'
+import { eq, and, gt, isNull } from 'drizzle-orm'
 
 export const membershipRouter = new Hono<{ Bindings: Env }>()
 
@@ -41,7 +41,7 @@ membershipRouter.post("/sync", zValidator("json", SyncMembershipSchema), async (
   }
 
   const tokenHash = createHash("sha256").update(token).digest("hex")
-  const sessions = await db.select().from(appSession).where(and(eq(appSession.tokenHash, tokenHash), eq(appSession.revokedAt, null), gt(appSession.expiresAt, new Date().toISOString()))).limit(1)
+  const sessions = await db.select().from(appSession).where(and(eq(appSession.tokenHash, tokenHash), isNull(appSession.revokedAt), gt(appSession.expiresAt, new Date().toISOString()))).limit(1)
   if (!sessions.length) {
     return c.json({ code: 1, msg: "Invalid session" }, 401)
   }

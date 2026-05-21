@@ -74,7 +74,7 @@ export async function processUpdate(env: Env, update: any) {
         if (text && text.startsWith('/')) {
             const command = text.split(' ')[0].substring(1);
             if (command === SUBSCRIBE_COMMAND) {
-                await handleSubscribeCommand(db, chatId, teleUserId, 0);
+                await handleSubscribeCommand(db, env, chatId, teleUserId, 0);
             } else if (command === START_COMMAND) {
                 const userInfo = await getUserInfoByTelegramId(db, teleUserId);
                 if (!userInfo.userId) {
@@ -84,13 +84,13 @@ export async function processUpdate(env: Env, update: any) {
                         first_name: update.message.from.first_name,
                         last_name: update.message.from.last_name
                     });
-                    await sendCommonTextMessage(chatId, `Welcome to Porkast, ${newUser.nickname}! Type any keyword to search for podcasts.`);
+                    await sendCommonTextMessage(env.TELE_BOT_TOKEN, chatId, `Welcome to Porkast, ${newUser.nickname}! Type any keyword to search for podcasts.`);
                 } else {
-                    await sendCommonTextMessage(chatId, `Welcome back, ${userInfo.nickname}! Type any keyword to search for podcasts.`);
+                    await sendCommonTextMessage(env.TELE_BOT_TOKEN, chatId, `Welcome back, ${userInfo.nickname}! Type any keyword to search for podcasts.`);
                 }
             } else {
                 const responseText = handleCommand(command);
-                await sendCommonTextMessage(chatId, responseText);
+                await sendCommonTextMessage(env.TELE_BOT_TOKEN, chatId, responseText);
             }
         } else if (text) {
             logger.debug(`Received search query from ${userName} (${chatId}): "${text}"`);
@@ -106,7 +106,7 @@ export async function processUpdate(env: Env, update: any) {
         const dataParts = data.split(':');
         const commandType = dataParts[0];
         if (commandType === SUBSCRIBE_COMMAND) {
-            await handleSubscribeCallbackQuery(db, chatId, messageId, data, teleUserId);
+            await handleSubscribeCallbackQuery(db, env, chatId, messageId, data, teleUserId);
         } else if (commandType === SEARCH_COMMAND) {
             await handleSearchCallbackQuery(db, env, teleUserId, chatId, messageId, data);
         }

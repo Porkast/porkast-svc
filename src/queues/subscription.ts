@@ -44,12 +44,12 @@ async function getLatestPubDateForSubscription(
 }
 
 export async function handleSubscriptionUpdate(
-  batch: MessageBatch<SubscriptionUpdateMessage>,
+  batch: MessageBatch<unknown>,
   env: Env,
   ctx: ExecutionContext
 ) {
   for (const msg of batch.messages) {
-    const { userId, keyword, country, source, excludeFeedId, latestId } = msg.body
+    const { userId, keyword, country, source, excludeFeedId, latestId } = msg.body as SubscriptionUpdateMessage
 
     try {
       let feedItemList: FeedItemType[]

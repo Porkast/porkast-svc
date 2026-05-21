@@ -6,9 +6,10 @@
     "strict": true,
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",
-    "types": ["@cloudflare/workers-types"],
+    "types": ["@cloudflare/workers-types", "node"],
     "skipLibCheck": true,
     "noEmit": true,
     "isolatedModules": true
-  }
+  },
+  "exclude": ["src/**/*.test.ts", "src/scripts/migrate-pg-to-d1.ts"]
 }

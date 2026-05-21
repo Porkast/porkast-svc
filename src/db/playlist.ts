@@ -92,7 +92,7 @@ export async function queryPlaylistItemsByPlaylistId(db: DbClient, playlistId: s
     Episode: result.episode || '',
     Explicit: result.explicit || '',
     Season: result.season || '',
-    EpisodeType: result.episodetype || '',
+    EpisodeType: result.episodeType || '',
     Description: decodeDatabaseText(result.description),
     TextDescription: decodeDatabaseText(result.description),
     ChannelImageUrl: "",

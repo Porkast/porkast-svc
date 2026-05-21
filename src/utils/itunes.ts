@@ -1,7 +1,7 @@
 import { FeedChannel, FeedItem } from "../models/feeds"
 import { convertMillsTimeToDuration, generateFeedItemId } from "./common"
 import { iTunesResponse, PodcastFeed, PodcastItem } from "../models/itunes"
-import Parser = require("rss-parser")
+import Parser from "rss-parser"
 import { logger } from "./logger"
 import { feedItem, keywordSubscription } from "../db/schema"
 
@@ -134,7 +134,7 @@ export const buildFeedItemAndKeywordInputList = async (keyword: string, country:
 
 export const getPodcastEpisodeInfo = async (podcastId: string, episodeId: string): Promise<{ podcast: FeedChannel, episode: FeedItem }> => {
     const res = await fetch(`https://itunes.apple.com/lookup?id=${podcastId}&entity=podcast`)
-    const jsonResp = await res.json()
+    const jsonResp = await res.json() as { results?: Array<{ feedUrl?: string }> }
     const podcastInfo = jsonResp?.results?.[0]
     if (!podcastInfo?.feedUrl) {
         throw new Error('Podcast Episode not found')

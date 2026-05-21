@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomInt, randomUUID } from 'crypto';
-import { eq, and, gt, desc, sql } from 'drizzle-orm';
+import { eq, and, gt, desc, sql, isNull } from 'drizzle-orm';
 import { createDb } from '../../db/client';
 import { verificationToken, userInfo as userInfoTable, appSession, userMembership } from '../../db/schema';
 import { sendLoginOtpEmail } from '../../email/resend';
@@ -219,7 +219,7 @@ export async function getSessionUser(env: Env, token: string): Promise<AuthUser 
     .where(
       and(
         eq(appSession.tokenHash, tokenHash),
-        eq(appSession.revokedAt, null),
+        isNull(appSession.revokedAt),
         gt(appSession.expiresAt, now),
       )
     )
@@ -253,7 +253,7 @@ export async function revokeSession(env: Env, token: string): Promise<void> {
     .where(
       and(
         eq(appSession.tokenHash, tokenHash),
-        eq(appSession.revokedAt, null),
+        isNull(appSession.revokedAt),
       )
     );
 }

@@ -6,7 +6,7 @@ import { setupTelegramWebhook } from '../telegram/bot.setup'
 import { setSpotifyCredentials } from '../utils/spotify'
 import type { Env, SubscriptionUpdateMessage } from '../env'
 
-export async function handleCron(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+export async function handleCron(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
   ctx.waitUntil(setupTelegramWebhook(env))
   setSpotifyCredentials(env.SPOTIFY_CLIENT_ID, env.SPOTIFY_CLIENT_SECRET)
 
