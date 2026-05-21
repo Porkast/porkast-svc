@@ -222,7 +222,7 @@ async function notifyUser(
       const link = `${env.TELE_MINI_APP_LINK}/subscription/${user.telegramId}/${keyword}`
 
       if (user.telegramId) {
-        sendSubscriptionNewUpdateMessage(user.telegramId, keyword, totalCount, ksList as any, link)
+        sendSubscriptionNewUpdateMessage(env.TELE_BOT_TOKEN, env.TELE_MINI_APP_LINK, user.telegramId, keyword, totalCount, ksList as any, link)
       }
 
       if (user.email) {
