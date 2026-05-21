@@ -1,23 +1,24 @@
-import { v5 as uuidv5 } from 'uuid';
-import { v4 as uuidv4 } from 'uuid';
-
 export const convertMillsTimeToDuration = (mills: number): string => {
-    // Check if the duration is in the thousands digits
     if (mills >= 1000 && mills < 10000) {
-        // Convert to milliseconds
         mills *= 1000;
     }
 
-    // Convert milliseconds to duration time with format 00:00:00
     const hours = Math.floor(mills / 3600000);
     const minutes = Math.floor((mills % 3600000) / 60000);
     const seconds = Math.floor(((mills % 3600000) % 60000) / 1000);
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
+async function sha1Hex(input: string): Promise<string> {
+    const data = new TextEncoder().encode(input)
+    const hash = await crypto.subtle.digest('SHA-1', data)
+    return Array.from(new Uint8Array(hash))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('')
+}
+
 export const generateFeedItemId = async (feedUrl: string, title: string): Promise<string> => {
-    const uniqueId = uuidv5(feedUrl + title, uuidv5.DNS);
-    return uniqueId
+    return sha1Hex(feedUrl + title)
 }
 
 export const formatDateTime = (dateTime: string): string => {
@@ -33,16 +34,13 @@ export const getNickname = (email: string, nickname: string): string => {
 }
 
 export const generatePlaylistId = async (name: string, userId: string): Promise<string> => {
-    const uniqueId = uuidv5(name + userId, uuidv5.DNS);
-    return uniqueId
+    return sha1Hex(name + userId)
 }
 
 export const generatePlaylistItemId = async (playlistId: string, itemId: string): Promise<string> => {
-    const uniqueId = uuidv5(playlistId + itemId, uuidv5.DNS);
-    return uniqueId
+    return sha1Hex(playlistId + itemId)
 }
 
 export const generateID = async (): Promise<string> => {
-    const uniqueId = uuidv4();
-    return uniqueId
+    return crypto.randomUUID()
 }

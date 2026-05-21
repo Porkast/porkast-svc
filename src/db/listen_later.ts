@@ -33,7 +33,6 @@ export const queryUserListenLaterList = async (db: DbClient, userId: string, lim
       country: schema.feedItem.source,
       reg_date: schema.userListenLater.regDate,
       text_description: schema.feedItem.description,
-      feed_id: schema.feedItem.feedId,
     })
     .from(schema.userListenLater)
     .innerJoin(schema.feedItem, eq(schema.feedItem.id, schema.userListenLater.itemId))
