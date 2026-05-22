@@ -22,7 +22,7 @@ function renderTemplate(template: string, params: Record<string, any>): string {
                 return value.map((v: any) => sectionContent.replace(/{{\.}}/g, v)).join('')
             })
         } else {
-            const regex = new RegExp(`{{${key}}}`, 'g')
+            const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g')
             result = result.replace(regex, String(value ?? ''))
         }
     }
