@@ -455,14 +455,13 @@ export async function queryUserAllKeywordSubscriptionFeedItemList(
     WITH matched_items AS (
       SELECT
         fi.id,
-        MAX(ks.create_time) AS latest_update_time,
-        (SELECT ks2.exclude_feed_id FROM keyword_subscription ks2 WHERE ks2.feed_item_id = fi.id ORDER BY ks2.create_time DESC LIMIT 1) AS exclude_feed_id,
-        (SELECT ks2.country FROM keyword_subscription ks2 WHERE ks2.feed_item_id = fi.id ORDER BY ks2.create_time DESC LIMIT 1) AS country
+        ks.exclude_feed_id,
+        ks.country,
+        ROW_NUMBER() OVER (PARTITION BY fi.id ORDER BY ks.create_time DESC) AS rn
       FROM feed_item fi
       INNER JOIN keyword_subscription ks ON (fi.id = ks.feed_item_id)
       INNER JOIN user_subscription usk ON (usk.keyword = ks.keyword AND usk.country = ks.country AND usk.exclude_feed_id = ks.exclude_feed_id AND usk.source = ks.source)
       WHERE usk.user_id = ${userId} AND usk.status = 1
-      GROUP BY fi.id
     )
     SELECT
       fi.*,
@@ -470,7 +469,7 @@ export async function queryUserAllKeywordSubscriptionFeedItemList(
       matched_items.country,
       COUNT(*) OVER() AS count
     FROM feed_item fi
-    INNER JOIN matched_items ON matched_items.id = fi.id
+    INNER JOIN matched_items ON matched_items.id = fi.id AND matched_items.rn = 1
     ORDER BY fi.pub_date DESC NULLS LAST, fi.id DESC
     LIMIT ${limit}
     OFFSET ${offset}
