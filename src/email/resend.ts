@@ -1,19 +1,37 @@
 import { CreateEmailResponse, Resend } from "resend";
-import { NotificationParams } from "../models/subscription";
-import * as Hogan from 'hogan.js';
+import type { NotificationParams } from "../models/subscription";
+import { NOTIFICATION_TEMPLATE } from '../templates/notification';
+import { LOGIN_OTP_TEMPLATE } from '../templates/login-otp';
 
 var resendInstance: Resend
 
-export function getResendInstance() {
+export function getResendInstance(apiKey: string) {
     if (resendInstance) {
         return resendInstance
     }
-    return new Resend(process.env.RESEND_API_KEY)
+    resendInstance = new Resend(apiKey)
+    return resendInstance
 }
 
-export async function sendSubscriptionUpdateEmail(params: NotificationParams): Promise<CreateEmailResponse> {
-    const resend = getResendInstance();
-    const htmlTempText = await generateTemplate("./resources/porkast-notification.html", {
+function renderTemplate(template: string, params: Record<string, any>): string {
+    let result = template
+    for (const [key, value] of Object.entries(params)) {
+        if (Array.isArray(value)) {
+            const sectionRegex = new RegExp(`{{#${key}}}([\\s\\S]*?){{\/${key}}}`, 'g')
+            result = result.replace(sectionRegex, (_, sectionContent) => {
+                return value.map((v: any) => sectionContent.replace(/{{\.}}/g, v)).join('')
+            })
+        } else {
+            const regex = new RegExp(`{{${key}}}`, 'g')
+            result = result.replace(regex, String(value ?? ''))
+        }
+    }
+    return result
+}
+
+export async function sendSubscriptionUpdateEmail(apiKey: string, params: NotificationParams): Promise<CreateEmailResponse> {
+    const resend = getResendInstance(apiKey);
+    const htmlTempText = renderTemplate(NOTIFICATION_TEMPLATE, {
         keyword: params.keyword,
         nickname: params.nickname,
         updateCount: params.updateCount,
@@ -29,12 +47,9 @@ export async function sendSubscriptionUpdateEmail(params: NotificationParams): P
     return resendResult
 }
 
-export async function sendLoginOtpEmail(to: string, code: string, expiresMinutes: number): Promise<CreateEmailResponse> {
-    const resend = getResendInstance();
-    const htmlTempText = await generateTemplate("./resources/porkast-login-otp.html", {
-        code,
-        expiresMinutes
-    })
+export async function sendLoginOtpEmail(apiKey: string, to: string, code: string, expiresMinutes: number): Promise<CreateEmailResponse> {
+    const resend = getResendInstance(apiKey);
+    const htmlTempText = renderTemplate(LOGIN_OTP_TEMPLATE, { code, expiresMinutes })
 
     return resend.emails.send({
         from: 'Porkast <noreply@porkast.com>',
@@ -42,10 +57,4 @@ export async function sendLoginOtpEmail(to: string, code: string, expiresMinutes
         subject: `${code} is your Porkast sign in code`,
         html: htmlTempText
     });
-}
-
-async function generateTemplate(templatePath: string, params: Record<string, unknown>) {
-    const htmlTemplate = await Bun.file(templatePath).text();
-    const htmlTempText = Hogan.compile(htmlTemplate).render(params)
-    return htmlTempText
 }

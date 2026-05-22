@@ -3,9 +3,11 @@ import { handleSubscribeCommand, handleSubscribeCallbackQuery } from './bot.hand
 import { handleSearch, handleSearchCallbackQuery } from './bot.handler.search';
 import { HELP_COMMAND, SEARCH_COMMAND, START_COMMAND, SUBSCRIBE_COMMAND } from './bot.types';
 import { logger } from '../utils/logger';
-import { FeedItem, FeedChannel } from '../models/feeds';
-import { InlineKeyboardButton, RenderedDetail } from './types';
+import type { FeedItem, FeedChannel } from '../models/feeds';
+import type { InlineKeyboardButton, RenderedDetail } from './types';
 import { getUserInfoByTelegramId, createUserFromTelegramInfo } from '../db/user';
+import { createDb } from '../db/client';
+import type { Env } from '../env';
 
 // Temporary storage for search result GUIDs to keep callback_data short
 export const searchResultMap = new Map<string, {feedId: string, guid: string}>();
@@ -14,17 +16,15 @@ export const subscriptionDetailMap = new Map<string, {feedId: string, guid: stri
 // Temporary storage for audio URLs to keep callback_data short
 export const audioUrlMap = new Map<string, {url: string, title: string, podcast: string}>();
 
-export function renderEpisodeDetailKeyboard(episode: FeedItem, podcast: FeedChannel, keyword: string, currentPage: number, commandType: string, callbackPrefix: string): RenderedDetail {
+export function renderEpisodeDetailKeyboard(env: Env, episode: FeedItem, podcast: FeedChannel, keyword: string, currentPage: number, commandType: string, callbackPrefix: string): RenderedDetail {
     const description = cleanHtmlForTelegram(episode.Description);
-    const porkastItemUrl = process.env.TELE_MINI_APP_LINK + `/podcast/${episode.FeedId}/episode/${episode.GUID}`
+    const porkastItemUrl = env.TELE_MINI_APP_LINK + `/podcast/${episode.FeedId}/episode/${episode.GUID}`
     const html = `<b>${episode.Title}</b>\n\n` +
         `<b>Podcast:</b> ${podcast.Title}\n` +
         `<b>Duration:</b> ${episode.Duration}\n` +
         `<b>Published:</b> ${episode.PubDate}\n\n` +
         `<b>Description:</b>\n${description}\n\n`
-        // `<a href="${episode.Link}">🎧 To Source Page this episode</a>`;
 
-    // Generate short ID for audio URL and store mapping
     const audioShortId = crypto.randomUUID().substring(0, 8);
     audioUrlMap.set(audioShortId, { url: episode.EnclosureUrl, title: episode.Title, podcast: podcast.Title });
 
@@ -39,10 +39,6 @@ export function renderEpisodeDetailKeyboard(episode: FeedItem, podcast: FeedChan
                 url: episode.Link
             }
         ],
-        // [{
-        //     text: '🎧 Listen to Episode',
-        //     callback_data: `${commandType}:${callbackPrefix}_play:${audioShortId}`
-        // }],
         [{
             text: 'Back to Search Results',
             callback_data: `${commandType}:${callbackPrefix}_back:${keyword}:${currentPage}`
@@ -64,7 +60,9 @@ function handleCommand(command: string): string {
     }
 }
 
-export async function processUpdate(update: any) {
+export async function processUpdate(env: Env, update: any) {
+    const db = createDb(env.DB)
+
     if (update.message) {
         const chatId = update.message.chat.id;
         const text = update.message.text;
@@ -76,31 +74,27 @@ export async function processUpdate(update: any) {
         if (text && text.startsWith('/')) {
             const command = text.split(' ')[0].substring(1);
             if (command === SUBSCRIBE_COMMAND) {
-                await handleSubscribeCommand(chatId, teleUserId, 0);
+                await handleSubscribeCommand(db, env, chatId, teleUserId, 0);
             } else if (command === START_COMMAND) {
-                // Handle /start command with auto-registration
-                const userInfo = await getUserInfoByTelegramId(teleUserId);
+                const userInfo = await getUserInfoByTelegramId(db, teleUserId);
                 if (!userInfo.userId) {
-                    // User doesn't exist - create new user
-                    const newUser = await createUserFromTelegramInfo({
+                    const newUser = await createUserFromTelegramInfo(db, {
                         id: teleUserId,
                         username: update.message.from.username,
                         first_name: update.message.from.first_name,
                         last_name: update.message.from.last_name
                     });
-                    await sendCommonTextMessage(chatId, `Welcome to Porkast, ${newUser.nickname}! Type any keyword to search for podcasts.`);
+                    await sendCommonTextMessage(env.TELE_BOT_TOKEN, chatId, `Welcome to Porkast, ${newUser.nickname}! Type any keyword to search for podcasts.`);
                 } else {
-                    // User exists - welcome back
-                    await sendCommonTextMessage(chatId, `Welcome back, ${userInfo.nickname}! Type any keyword to search for podcasts.`);
+                    await sendCommonTextMessage(env.TELE_BOT_TOKEN, chatId, `Welcome back, ${userInfo.nickname}! Type any keyword to search for podcasts.`);
                 }
             } else {
                 const responseText = handleCommand(command);
-                await sendCommonTextMessage(chatId, responseText);
+                await sendCommonTextMessage(env.TELE_BOT_TOKEN, chatId, responseText);
             }
         } else if (text) {
-            // Treat as search query
             logger.debug(`Received search query from ${userName} (${chatId}): "${text}"`);
-            await handleSearch(chatId, text.trim(), 0);
+            await handleSearch(env, chatId, text.trim(), 0);
         }
     } else if (update.callback_query) {
         const chatId = update.callback_query.message.chat.id;
@@ -112,9 +106,9 @@ export async function processUpdate(update: any) {
         const dataParts = data.split(':');
         const commandType = dataParts[0];
         if (commandType === SUBSCRIBE_COMMAND) {
-            await handleSubscribeCallbackQuery(chatId, messageId, data, teleUserId);
+            await handleSubscribeCallbackQuery(db, env, chatId, messageId, data, teleUserId);
         } else if (commandType === SEARCH_COMMAND) {
-            await handleSearchCallbackQuery(teleUserId, chatId, messageId, data);
+            await handleSearchCallbackQuery(db, env, teleUserId, chatId, messageId, data);
         }
     }
 }

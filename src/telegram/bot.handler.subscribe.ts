@@ -7,20 +7,23 @@ import { InlineKeyboardButton, RenderedDetail } from './types';
 import { logger } from '../utils/logger';
 import { subscriptionDetailMap, audioUrlMap, renderEpisodeDetailKeyboard } from './bot.handler';
 import { SUBSCRIBE_COMMAND } from './bot.types';
-import { getSpotifyEpisodeDetail, getSpotifyShowDetail } from '../utils/spotify';
 import { getPodcastEpisodeInfo } from '../utils/itunes';
+import type { Env } from '../env';
+import type { DbClient } from '../db/types';
 
 const SUBSCRIBE_PAGE_SIZE = 5;
 const SUBSCRIBE_DETAIL_PAGE_SIZE = 10;
 
-export async function handleSubscribeCommand(chatId: number, teleUserId: string, page: number, messageId?: number): Promise<void> {
+export async function handleSubscribeCommand(db: DbClient, env: Env, chatId: number, teleUserId: string, page: number, messageId?: number): Promise<void> {
+    const botToken = env.TELE_BOT_TOKEN;
+    const miniAppLink = env.TELE_MINI_APP_LINK;
     try {
         const offset = page * SUBSCRIBE_PAGE_SIZE;
-        const userInfo = await getUserInfoByTelegramId(teleUserId);
-        const subscriptions = await queryUserKeywordSubscriptionList(userInfo.userId, offset, SUBSCRIBE_PAGE_SIZE);
+        const userInfo = await getUserInfoByTelegramId(db, teleUserId);
+        const subscriptions = await queryUserKeywordSubscriptionList(db, userInfo.userId, offset, SUBSCRIBE_PAGE_SIZE);
 
         if (subscriptions.length === 0) {
-            await sendCommonTextMessage(chatId, 'You have no subscriptions yet.');
+            await sendCommonTextMessage(botToken, chatId, 'You have no subscriptions yet.');
             return;
         }
 
@@ -39,13 +42,13 @@ export async function handleSubscribeCommand(chatId: number, teleUserId: string,
 
         if (messageId) {
             const editBody = { ...requestBody, message_id: messageId };
-            await editMessage(JSON.stringify(editBody));
+            await editMessage(botToken, JSON.stringify(editBody));
         } else {
-            await sendMessage(JSON.stringify(requestBody));
+            await sendMessage(botToken, JSON.stringify(requestBody));
         }
     } catch (error) {
         logger.error('Error handling subscribe command:', error);
-        await sendCommonTextMessage(chatId, 'Error loading subscriptions.');
+        await sendCommonTextMessage(botToken, chatId, 'Error loading subscriptions.');
     }
 }
 
@@ -55,7 +58,7 @@ export function renderSubscribeKeyboard(subscriptions: SubscriptionDataDto[], te
     for (const sub of subscriptions) {
         keyboard.push([{
             text: sub.Keyword,
-            callback_data: `subscribe:sub_detail:${sub.Keyword}:0` // Add initial page 0
+            callback_data: `subscribe:sub_detail:${sub.Keyword}:0`
         }]);
     }
 
@@ -79,28 +82,30 @@ export function renderSubscribeKeyboard(subscriptions: SubscriptionDataDto[], te
     return keyboard;
 }
 
-async function showSubscriptionDetailPage(chatId: number, teleUserId: string, keyword: string, page: number, messageId?: number): Promise<void> {
+async function showSubscriptionDetailPage(db: DbClient, env: Env, chatId: number, teleUserId: string, keyword: string, page: number, messageId?: number): Promise<void> {
+    const botToken = env.TELE_BOT_TOKEN;
+    const miniAppLink = env.TELE_MINI_APP_LINK;
     try {
-        const userInfo = await getUserInfoByTelegramId(teleUserId);
-        const subDetail = await queryUserKeywordSubscriptionDetail(userInfo.userId, keyword);
-        
+        const userInfo = await getUserInfoByTelegramId(db, teleUserId);
+        const subDetail = await queryUserKeywordSubscriptionDetail(db, userInfo.userId, keyword);
+
         const offset = page * SUBSCRIBE_DETAIL_PAGE_SIZE;
-        const [feedItems, totalCount] = await queryKeywordSubscriptionFeedItemList(userInfo.userId, keyword, subDetail.Source, subDetail.Country, subDetail.ExcludeFeedId, offset, SUBSCRIBE_DETAIL_PAGE_SIZE);
+        const [feedItems, totalCount] = await queryKeywordSubscriptionFeedItemList(db, userInfo.userId, keyword, subDetail.Source, subDetail.Country, subDetail.ExcludeFeedId, offset, SUBSCRIBE_DETAIL_PAGE_SIZE);
 
         const totalPages = Math.ceil(totalCount / SUBSCRIBE_DETAIL_PAGE_SIZE);
 
         if (page < 0 || (page >= totalPages && totalPages > 0)) {
-            await sendCommonTextMessage(chatId, "You've reached the end of the list.");
+            await sendCommonTextMessage(botToken, chatId, "You've reached the end of the list.");
             return;
         }
 
         if (totalCount === 0) {
-            await sendCommonTextMessage(chatId, `No feed items found for subscription: ${keyword}`);
+            await sendCommonTextMessage(botToken, chatId, `No feed items found for subscription: ${keyword}`);
             return;
         }
 
         const { text, keyboard } = renderSubscribeDetailKeyboard(feedItems, keyword, page, totalPages, teleUserId);
-        
+
         const requestBody = {
             chat_id: chatId,
             text: text,
@@ -112,22 +117,25 @@ async function showSubscriptionDetailPage(chatId: number, teleUserId: string, ke
 
         if (messageId) {
             const editBody = { ...requestBody, message_id: messageId };
-            await editMessage(JSON.stringify(editBody));
+            await editMessage(botToken, JSON.stringify(editBody));
         } else {
-            await sendMessage(JSON.stringify(requestBody));
+            await sendMessage(botToken, JSON.stringify(requestBody));
         }
 
     } catch (error) {
         logger.error(`Error fetching subscription detail for ${keyword}:`, error);
-        await sendCommonTextMessage(chatId, `Error fetching details for: ${keyword}`);
+        await sendCommonTextMessage(botToken, chatId, `Error fetching details for: ${keyword}`);
     }
 }
 
-export async function handleSubscribeCallbackQuery(chatId: number, messageId: number, data: string, teleUserId: string): Promise<void> {
+export async function handleSubscribeCallbackQuery(db: DbClient, env: Env, chatId: number, messageId: number, data: string, teleUserId: string): Promise<void> {
     if (!data.startsWith('subscribe:')) return;
 
+    const botToken = env.TELE_BOT_TOKEN;
+    const miniAppLink = env.TELE_MINI_APP_LINK;
+
     const parts = data.split(':');
-    const command = parts[0]; // 'subscribe'
+    const command = parts[0];
     const action = parts[1];
     const payload = parts.slice(2);
 
@@ -135,7 +143,7 @@ export async function handleSubscribeCallbackQuery(chatId: number, messageId: nu
         const [teleUserId, currentPageStr] = payload;
         const currentPage = parseInt(currentPageStr);
         const newPage = action === 'sub_prev' ? currentPage - 1 : currentPage + 1;
-        await handleSubscribeCommand(chatId, teleUserId, newPage, messageId);
+        await handleSubscribeCommand(db, env, chatId, teleUserId, newPage, messageId);
     } else if (action === 'sub_detail' || action === 'sub_detail_prev' || action === 'sub_detail_next') {
         const [keyword, currentPageStr] = payload;
         const currentPage = parseInt(currentPageStr);
@@ -146,29 +154,27 @@ export async function handleSubscribeCallbackQuery(chatId: number, messageId: nu
         } else if (action === 'sub_detail_next') {
             newPage = currentPage + 1;
         }
-        
-        await showSubscriptionDetailPage(chatId, teleUserId, keyword, newPage, messageId);
+
+        await showSubscriptionDetailPage(db, env, chatId, teleUserId, keyword, newPage, messageId);
     } else if (action === 'sub_back_to_list') {
-        const [teleUserIdFromPayload, pageStr] = payload; // pageStr should be '0'
-        await handleSubscribeCommand(chatId, teleUserIdFromPayload, parseInt(pageStr), messageId); // Go back to page 0 of subscriptions
+        const [teleUserIdFromPayload, pageStr] = payload;
+        await handleSubscribeCommand(db, env, chatId, teleUserIdFromPayload, parseInt(pageStr), messageId);
     } else if (action === 'sub_item_detail_back') {
         const [keyword, currentPageStr] = payload;
         const currentPage = parseInt(currentPageStr);
-        await showSubscriptionDetailPage(chatId, teleUserId, keyword, currentPage, messageId);
+        await showSubscriptionDetailPage(db, env, chatId, teleUserId, keyword, currentPage, messageId);
     } else if (action === 'sub_item_detail') {
         const [shortId, keyword, currentPageStr] = payload;
         const mapping = subscriptionDetailMap.get(shortId);
 
         if (!mapping) {
-            await sendCommonTextMessage(chatId, 'Episode details not found. Please try again.');
+            await sendCommonTextMessage(botToken, chatId, 'Episode details not found. Please try again.');
             return;
         }
 
         try {
             const { podcast, episode } = await getPodcastEpisodeInfo(mapping.feedId, mapping.guid);
-            // const episode = await getSpotifyEpisodeDetail(mapping.guid);
-            // const podcast = await getSpotifyShowDetail(episode.ChannelId);
-            const { text, keyboard } = renderEpisodeDetailKeyboard(episode, podcast, keyword, parseInt(currentPageStr), SUBSCRIBE_COMMAND, 'sub_item_detail');
+            const { text, keyboard } = renderEpisodeDetailKeyboard(env, episode, podcast, keyword, parseInt(currentPageStr), SUBSCRIBE_COMMAND, 'sub_item_detail');
 
             const editBody = {
                 chat_id: chatId,
@@ -180,35 +186,35 @@ export async function handleSubscribeCallbackQuery(chatId: number, messageId: nu
                 }
             };
 
-            await editMessage(JSON.stringify(editBody));
+            await editMessage(botToken, JSON.stringify(editBody));
         } catch (error) {
             logger.error('Error fetching subscribed episode details:', error);
-            await sendCommonTextMessage(chatId, 'Error loading episode details.');
+            await sendCommonTextMessage(botToken, chatId, 'Error loading episode details.');
         } finally {
             subscriptionDetailMap.delete(shortId);
         }
     } else if (action === 'sub_item_detail_play') {
         const [audioShortId] = payload;
         const audioInfo = audioUrlMap.get(audioShortId);
-        
+
         if (!audioInfo) {
-            await sendCommonTextMessage(chatId, 'Audio URL not found. Maybe you can try again.');
+            await sendCommonTextMessage(botToken, chatId, 'Audio URL not found. Maybe you can try again.');
             return;
         }
 
         try {
             logger.debug(`Attempting to play audio from URL: ${audioInfo.url}`);
-            
+
             if (!audioInfo.url || audioInfo.url.trim() === '') {
-                await sendCommonTextMessage(chatId, 'Audio URL is empty. Cannot play episode.');
+                await sendCommonTextMessage(botToken, chatId, 'Audio URL is empty. Cannot play episode.');
                 return;
             }
 
             logger.debug(`Sending audio to chat ${chatId} with URL: ${audioInfo.url} and title: ${audioInfo.title}`);
-            await sendAudio(chatId, audioInfo.url, audioInfo.title, audioInfo.podcast);
+            await sendAudio(botToken, chatId, audioInfo.url, audioInfo.title, audioInfo.podcast);
         } catch (error) {
             logger.error('Error playing audio:', error);
-            await sendCommonTextMessage(chatId, 'Error playing audio. The audio file may be unavailable.');
+            await sendCommonTextMessage(botToken, chatId, 'Error playing audio. The audio file may be unavailable.');
         }
     }
 }
@@ -227,7 +233,6 @@ export function renderSubscribeDetailKeyboard(feedItems: FeedItem[], keyword: st
         }]);
     }
 
-    // Add the 'Back to Subscriptions' button row
     keyboard.push([{
         text: 'Back to Subscriptions',
         callback_data: `subscribe:sub_back_to_list:${teleUserId}:0`

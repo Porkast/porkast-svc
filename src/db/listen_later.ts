@@ -1,50 +1,84 @@
-import { Prisma } from "@prisma/client"
-import prisma from "./prisma.client"
+import { eq, and, sql } from 'drizzle-orm'
 import { UserListenLaterDto } from "../models/listen_later"
 import { decodeDatabaseText } from "../utils/text"
+import * as schema from './schema'
 
-export const queryUserListenLaterList = async (userId: string, limit: number, offset: number): Promise<UserListenLaterDto[]> => {
+type DbClient = ReturnType<typeof import('./client').createDb>
 
-    let listenLaterDtoList = await prisma.$queryRaw<UserListenLaterDto[]>(
-        Prisma.sql`
-            SELECT fi.*, ull.reg_date 
-            FROM user_listen_later ull
-            INNER JOIN feed_item fi ON fi.id = ull.item_id
-            WHERE ull.user_id = ${userId} and ull.status = 1 
-            ORDER BY ull.reg_date DESC 
-            LIMIT ${limit} 
-            OFFSET ${offset}
-        `
+export const queryUserListenLaterList = async (db: DbClient, userId: string, limit: number, offset: number): Promise<UserListenLaterDto[]> => {
+  const result = await db
+    .select({
+      id: schema.feedItem.id,
+      feed_id: schema.feedItem.feedId,
+      guid: schema.feedItem.guid,
+      channel_id: schema.feedItem.channelId,
+      title: schema.feedItem.title,
+      link: schema.feedItem.link,
+      pub_date: schema.feedItem.pubDate,
+      author: schema.feedItem.author,
+      input_date: schema.feedItem.inputDate,
+      image_url: schema.feedItem.imageUrl,
+      enclosure_url: schema.feedItem.enclosureUrl,
+      enclosure_type: schema.feedItem.enclosureType,
+      enclosure_length: schema.feedItem.enclosureLength,
+      duration: schema.feedItem.duration,
+      episode: schema.feedItem.episode,
+      explicit: schema.feedItem.explicit,
+      season: schema.feedItem.season,
+      episodetype: schema.feedItem.episodetype,
+      description: schema.feedItem.description,
+      channel_title: schema.feedItem.channelTitle,
+      feed_link: schema.feedItem.feedLink,
+      source: schema.feedItem.source,
+      country: schema.feedItem.source,
+      reg_date: schema.userListenLater.regDate,
+      text_description: schema.feedItem.description,
+    })
+    .from(schema.userListenLater)
+    .innerJoin(schema.feedItem, eq(schema.feedItem.id, schema.userListenLater.itemId))
+    .where(
+      and(
+        eq(schema.userListenLater.userId, userId),
+        eq(schema.userListenLater.status, 1),
+      )
+    )
+    .orderBy(sql`${schema.userListenLater.regDate} DESC`)
+    .limit(limit)
+    .offset(offset)
+
+  for (const item of result) {
+    item.description = decodeDatabaseText(item.description)
+    item.text_description = decodeDatabaseText(item.text_description || item.description)
+  }
+
+  return result as unknown as UserListenLaterDto[]
+}
+
+export const queryUserListenLaterTotalCount = async (db: DbClient, userId: string): Promise<number> => {
+  const result = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(schema.userListenLater)
+    .where(
+      and(
+        eq(schema.userListenLater.userId, userId),
+        eq(schema.userListenLater.status, 1),
+      )
+    )
+    .then((r) => Number(r[0]?.count || 0))
+  return result
+}
+
+export async function disableUserListenLaterItem(db: DbClient, userId: string, itemId: string): Promise<boolean> {
+  const result = await db
+    .update(schema.userListenLater)
+    .set({ status: 0 })
+    .where(
+      and(
+        eq(schema.userListenLater.userId, userId),
+        eq(schema.userListenLater.itemId, itemId),
+        eq(schema.userListenLater.status, 1),
+      )
     )
 
-    for (let listenLaterDto of listenLaterDtoList) {
-        listenLaterDto.description = decodeDatabaseText(listenLaterDto.description)
-        listenLaterDto.text_description = decodeDatabaseText(listenLaterDto.text_description || listenLaterDto.description)
-    }
-
-    return listenLaterDtoList
-}
-
-export const queryUserListenLaterTotalCount = async (userId: string): Promise<number> => {
-    const totalCount = await prisma.user_listen_later.count({
-        where: {
-            user_id: userId,
-            status: 1
-        }
-    })
-    return totalCount
-}
-
-export async function disableUserListenLaterItem(userId: string, itemId: string): Promise<boolean> {
-    const result = await prisma.user_listen_later.updateMany({
-        where: {
-            user_id: userId,
-            item_id: itemId,
-            status: 1
-        },
-        data: {
-            status: 0
-        }
-    })
-    return result.count > 0
+  return (result as any)?.meta?.rows_written > 0 || (result as any)?.changes > 0
 }

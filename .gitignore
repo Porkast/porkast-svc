@@ -1,5 +1,15 @@
 # deps
 node_modules/
 
-/src/generated/prisma
+# env
 .env
+.dev.vars
+
+# cloudflare
+.wrangler/
+
+# drizzle meta
+drizzle/meta/
+
+# data migration output
+migrations/data/

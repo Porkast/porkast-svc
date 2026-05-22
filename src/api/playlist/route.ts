@@ -3,14 +3,15 @@ import { Hono } from "hono";
 import { AddPodcastToPlaylistRequestData, AddPodcastToPlaylistSchema, CreatePlaylistRequestData, CreatePlaylistSchema } from "./types";
 import { addPodcastToPlaylist, createPlaylist, deletePlaylist, getPlaylistById, getPlaylistPodcastList, getUserPlaylistList } from "./playlist";
 import { DEFAULT_PODCAST_SOURCE } from "../../models/types";
+import { createDb } from "../../db/client";
+import type { Env } from "../../env";
 
-
-export const playlistRoute = new Hono()
+export const playlistRoute = new Hono<{ Bindings: Env }>()
 
 playlistRoute.post('', zValidator('json', CreatePlaylistSchema), async (c) => {
-
     const body: CreatePlaylistRequestData = await c.req.json();
-    const message = await createPlaylist(body.userId, body.playlistName, body.description || '')
+    const db = createDb(c.env.DB)
+    const message = await createPlaylist(db, body.userId, body.playlistName, body.description || '')
 
     return c.json({
         code: 0,
@@ -19,7 +20,6 @@ playlistRoute.post('', zValidator('json', CreatePlaylistSchema), async (c) => {
 })
 
 playlistRoute.get('/list/:userId', async (c) => {
-
     const userId = c.req.param('userId')
     const limit = c.req.query('limit') || '10'
     const offset = c.req.query('offset') || '0'
@@ -29,7 +29,8 @@ playlistRoute.get('/list/:userId', async (c) => {
             msg: 'User Id is required'
         })
     }
-    const data = await getUserPlaylistList(userId, limit, offset)
+    const db = createDb(c.env.DB)
+    const data = await getUserPlaylistList(db, userId, limit, offset)
     return c.json({
         code: 0,
         msg: 'Success',
@@ -48,7 +49,8 @@ playlistRoute.get('/list/:userId/:playlistId', async (c) => {
             msg: 'User Id is required'
         })
     }
-    const data = await getPlaylistPodcastList(userId, playlistId, limit, offset)
+    const db = createDb(c.env.DB)
+    const data = await getPlaylistPodcastList(db, userId, playlistId, limit, offset)
     return c.json({
         code: 0,
         msg: 'Success',
@@ -64,7 +66,8 @@ playlistRoute.get('/:playlistId', async (c) => {
             msg: 'Playlist Id is required'
         })
     }
-    const data = await getPlaylistById(playlistId)
+    const db = createDb(c.env.DB)
+    const data = await getPlaylistById(db, playlistId)
     if (!data) {
         return c.json({
             code: 1,
@@ -82,10 +85,10 @@ playlistRoute.get('/:playlistId', async (c) => {
 })
 
 playlistRoute.post('/item', zValidator('json', AddPodcastToPlaylistSchema), async (c) => {
-
     const body: AddPodcastToPlaylistRequestData = c.req.valid('json');
     try {
-        const message = await addPodcastToPlaylist(body.playlistId, body.channelId, body.source || DEFAULT_PODCAST_SOURCE, body.guid)
+        const db = createDb(c.env.DB)
+        const message = await addPodcastToPlaylist(db, body.playlistId, body.channelId, body.source || DEFAULT_PODCAST_SOURCE, body.guid)
         return c.json({
             code: 0,
             msg: message
@@ -96,7 +99,6 @@ playlistRoute.post('/item', zValidator('json', AddPodcastToPlaylistSchema), asyn
             msg: error.message
         })
     }
-
 })
 
 playlistRoute.delete('/:playlistId', async (c) => {
@@ -108,7 +110,8 @@ playlistRoute.delete('/:playlistId', async (c) => {
         })
     }
     try {
-        await deletePlaylist(playlistId)
+        const db = createDb(c.env.DB)
+        await deletePlaylist(db, playlistId)
     } catch (error: Error | any) {
         return c.json({
             code: 1,

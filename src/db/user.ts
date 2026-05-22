@@ -1,80 +1,71 @@
-import { UserInfo, TelegramUser } from "../api/user/types";
-import prisma from "../db/prisma.client";
-import { v4 as uuidv4 } from 'uuid';
-import { UserAlreadyExistsError, DatabaseError } from "./types";
+import { eq } from 'drizzle-orm'
+import { UserInfo, TelegramUser } from "../api/user/types"
+import { UserAlreadyExistsError } from "./types"
+import * as schema from './schema'
 
-export async function getUserInfoByTelegramId(telegramId: string): Promise<UserInfo> {
+type DbClient = ReturnType<typeof import('./client').createDb>
 
-    let userInfo = await prisma.user_info.findFirst({
-        where: {
-            telegram_id: telegramId || ""
-        }
-    })
+export async function getUserInfoByTelegramId(db: DbClient, telegramId: string): Promise<UserInfo> {
+  const userInfo = await db
+    .select()
+    .from(schema.userInfo)
+    .where(eq(schema.userInfo.telegramId, telegramId || ""))
+    .limit(1)
 
-    const userInfoData: UserInfo = {
-        userId: userInfo?.id || "",
-        telegramId: userInfo?.telegram_id || "",
-        nickname: userInfo?.nickname || "",
-        password: userInfo?.password || "",
-        email: userInfo?.email || "",
-        phone: userInfo?.phone || "",
-        avatar: userInfo?.avatar || "",
-        regDate: userInfo?.reg_date || new Date(),
-        updateDate: userInfo?.update_date || new Date()
-    }
-
-    return userInfoData
+  const row = userInfo[0]
+  return {
+    userId: row?.id || "",
+    telegramId: row?.telegramId || "",
+    nickname: row?.nickname || "",
+    password: row?.password || "",
+    email: row?.email || "",
+    phone: row?.phone || "",
+    avatar: row?.avatar || "",
+    regDate: row?.regDate ? new Date(row.regDate) : new Date(),
+    updateDate: row?.updateDate ? new Date(row.updateDate) : new Date(),
+  }
 }
 
-export async function createUserFromTelegramInfo(telegramUser: TelegramUser): Promise<UserInfo> {
-    // Check if user already exists
-    const existingUser = await prisma.user_info.findFirst({
-        where: {
-            telegram_id: telegramUser.id
-        }
-    });
+export async function createUserFromTelegramInfo(db: DbClient, telegramUser: TelegramUser): Promise<UserInfo> {
+  const existing = await db
+    .select()
+    .from(schema.userInfo)
+    .where(eq(schema.userInfo.telegramId, telegramUser.id))
+    .limit(1)
 
-    if (existingUser) {
-        throw new UserAlreadyExistsError(telegramUser.id);
-    }
+  if (existing.length > 0) {
+    throw new UserAlreadyExistsError(telegramUser.id)
+  }
 
-    // Generate user ID
-    const userId = uuidv4();
+  const userId = crypto.randomUUID()
+  const nickname = telegramUser.username ||
+    [telegramUser.first_name, telegramUser.last_name]
+      .filter(Boolean)
+      .join(' ') ||
+    `User_${telegramUser.id.substring(0, 8)}`
 
-    // Create nickname from Telegram user info
-    const nickname = telegramUser.username ||
-        [telegramUser.first_name, telegramUser.last_name]
-            .filter(Boolean)
-            .join(' ') ||
-        `User_${telegramUser.id.substring(0, 8)}`;
+  await db.insert(schema.userInfo).values({
+    id: userId,
+    telegramId: telegramUser.id,
+    username: telegramUser.username || null,
+    nickname: nickname,
+    password: '',
+    email: '',
+    phone: '',
+    avatar: '',
+    regDate: new Date().toISOString(),
+    updateDate: new Date().toISOString(),
+  })
 
-    // Create user in database
-    const newUser = await prisma.user_info.create({
-        data: {
-            id: userId,
-            telegram_id: telegramUser.id,
-            username: telegramUser.username || null,
-            nickname: nickname,
-            password: '', // Empty password for Telegram users
-            email: '', // Empty email
-            phone: '', // Empty phone
-            avatar: '', // Empty avatar
-            reg_date: new Date(),
-            update_date: new Date()
-        }
-    });
-
-    const userInfoData: UserInfo = {
-        userId: newUser.id,
-        telegramId: newUser.telegram_id || '',
-        nickname: newUser.nickname || '',
-        password: newUser.password || '',
-        email: newUser.email || '',
-        phone: newUser.phone || '',
-        avatar: newUser.avatar || '',
-        regDate: newUser.reg_date || new Date(),
-        updateDate: newUser.update_date || new Date()
-    }
-
-    return userInfoData;
+  return {
+    userId: userId,
+    telegramId: telegramUser.id,
+    nickname: nickname,
+    password: '',
+    email: '',
+    phone: '',
+    avatar: '',
+    regDate: new Date(),
+    updateDate: new Date(),
+  }
 }

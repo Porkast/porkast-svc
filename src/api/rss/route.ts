@@ -1,11 +1,13 @@
 import { Hono } from "hono";
 import { generateListenLaterRSSXml, generatePlaylistRSSXml, generateSubscriptionRSS } from "../../db/shared";
 import { logger } from "../../utils/logger";
+import type { Env } from '../../env'
+import { createDb } from '../../db/client'
 
-
-export const rssRoute = new Hono()
+export const rssRoute = new Hono<{ Bindings: Env }>()
 
 rssRoute.get('/listenlater/:userId', async (c) => {
+    const db = createDb(c.env.DB)
     const userId = c.req.param('userId')
     if (!userId) {
         return c.json({
@@ -14,7 +16,7 @@ rssRoute.get('/listenlater/:userId', async (c) => {
         })
     }
     try {
-        const rssStr = await generateListenLaterRSSXml(userId)
+        const rssStr = await generateListenLaterRSSXml(db, userId)
         return c.body(rssStr, 200, {
             'Content-Type': 'application/rss+xml'
         });
@@ -28,6 +30,7 @@ rssRoute.get('/listenlater/:userId', async (c) => {
 })
 
 rssRoute.get('playlist/:playlistId/:userId', async (c) => {
+    const db = createDb(c.env.DB)
     const userId = c.req.param('userId')
     const playlistId = c.req.param('playlistId')
     if (!userId) {
@@ -43,7 +46,7 @@ rssRoute.get('playlist/:playlistId/:userId', async (c) => {
         })
     }
     try {
-        const rssStr = await generatePlaylistRSSXml(userId, playlistId)
+        const rssStr = await generatePlaylistRSSXml(db, userId, playlistId)
         return c.body(rssStr, 200, {
             'Content-Type': 'application/rss+xml'
         });
@@ -57,6 +60,7 @@ rssRoute.get('playlist/:playlistId/:userId', async (c) => {
 })
 
 rssRoute.get('/subscription/:userId/:keyword', async (c) => {
+    const db = createDb(c.env.DB)
     const userId = c.req.param('userId')
     const keyword = c.req.param('keyword')
     if (!userId) {
@@ -72,7 +76,7 @@ rssRoute.get('/subscription/:userId/:keyword', async (c) => {
         })
     }
     try {
-        const rssStr = await generateSubscriptionRSS(userId, keyword)
+        const rssStr = await generateSubscriptionRSS(db, userId, keyword)
         return c.body(rssStr, 200, {
             'Content-Type': 'application/rss+xml'
         });
