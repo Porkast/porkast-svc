@@ -59,6 +59,7 @@ export const keywordSubscription = sqliteTable('keyword_subscription', {
   uniqueIdx: uniqueIndex('ks_idx_uniq').on(table.keyword, table.feedChannelId, table.feedItemId, table.country, table.source, table.excludeFeedId),
   kcseIdx: index('ks_idx_kcse').on(table.keyword, table.country, table.source, table.excludeFeedId),
   keywordIdx: index('ks_idx_keyword').on(table.keyword),
+  feedItemIdIdx: index('ks_idx_feed_item_id').on(table.feedItemId, table.createTime),
 }))
 
 export const userInfo = sqliteTable('user_info', {

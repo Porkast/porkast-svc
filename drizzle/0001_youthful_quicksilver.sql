@@ -1,0 +1,1 @@
+CREATE INDEX `ks_idx_feed_item_id` ON `keyword_subscription` (`feed_item_id`,`create_time`);
