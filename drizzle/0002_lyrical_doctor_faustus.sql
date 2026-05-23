@@ -1,0 +1,1 @@
+CREATE INDEX `ks_idx_fi_kcse` ON `keyword_subscription` (`feed_item_id`,`keyword`,`country`,`source`,`exclude_feed_id`);
