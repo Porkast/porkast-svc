@@ -28,14 +28,15 @@ async function getLatestPubDateForSubscription(
   const result = await db
     .select({ pubDate: feedItem.pubDate })
     .from(feedItem)
-    .innerJoin(keywordSubscription, eq(feedItem.id, keywordSubscription.feedItemId))
     .where(
-      and(
-        eq(keywordSubscription.keyword, keyword),
-        eq(keywordSubscription.country, country),
-        eq(keywordSubscription.source, source),
-        eq(keywordSubscription.excludeFeedId, excludeFeedId),
-      )
+      sql`EXISTS (
+        SELECT 1 FROM ${keywordSubscription}
+        WHERE ${keywordSubscription.feedItemId} = ${feedItem.id}
+          AND ${keywordSubscription.keyword} = ${keyword}
+          AND ${keywordSubscription.country} = ${country}
+          AND ${keywordSubscription.source} = ${source}
+          AND ${keywordSubscription.excludeFeedId} = ${excludeFeedId}
+      )`
     )
     .orderBy(desc(feedItem.pubDate))
     .limit(1)
