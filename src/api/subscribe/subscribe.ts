@@ -29,36 +29,46 @@ export async function updateUserSubscription(db: DbClient, request: KeywordSubsc
                 eq(userSubscription.userId, userId),
                 eq(userSubscription.keyword, keyword),
                 eq(userSubscription.source, source),
-                eq(userSubscription.status, 1),
             )
         )
         .limit(1)
 
+    let subId: string
+
     if (existing.length > 0) {
-        return 'Already subscribed'
-    }
-
-    const subId = crypto.randomUUID()
-
-    try {
-        await db.insert(userSubscription).values({
-            id: subId,
-            userId: userId,
-            keyword: keyword,
-            country: country,
-            source: source,
-            excludeFeedId: excludeFeedId,
-            orderByDate: sortByDate,
-            status: 1,
-            createTime: new Date().toISOString(),
-            type: 'searchKeyword',
-        })
-    } catch (error: any) {
-        if (error?.message?.includes('UNIQUE constraint failed')) {
+        if (existing[0].status === 1) {
             return 'Already subscribed'
         }
-        logger.error(String(error))
-        throw error
+        subId = existing[0].id
+        await db
+            .update(userSubscription)
+            .set({
+                status: 1,
+                updateTime: new Date().toISOString(),
+            })
+            .where(eq(userSubscription.id, subId))
+    } else {
+        subId = crypto.randomUUID()
+        try {
+            await db.insert(userSubscription).values({
+                id: subId,
+                userId: userId,
+                keyword: keyword,
+                country: country,
+                source: source,
+                excludeFeedId: excludeFeedId,
+                orderByDate: sortByDate,
+                status: 1,
+                createTime: new Date().toISOString(),
+                type: 'searchKeyword',
+            })
+        } catch (error: any) {
+            if (error?.message?.includes('UNIQUE constraint failed')) {
+                return 'Already subscribed'
+            }
+            logger.error(String(error))
+            throw error
+        }
     }
 
     try {
