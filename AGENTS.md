@@ -141,7 +141,7 @@ SPOTIFY_CLIENT_SECRET="your_spotify_client_secret"
 
 ```bash
 PORKAST_WEB_BASE_URL="https://porkast.com"
-TELE_MINI_APP_LINK="https://t.me/porkast_bot/app"
+TELE_MINI_APP_LINK="https://porkast-tele-mini-app.guoshaotech.workers.dev"
 NODE_ENV="production"
 ```
 
