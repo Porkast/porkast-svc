@@ -223,7 +223,24 @@ async function notifyUser(
       const link = `${env.TELE_MINI_APP_LINK}/subscription/${user.telegramId}/${keyword}`
 
       if (user.telegramId) {
-        sendSubscriptionNewUpdateMessage(env.TELE_BOT_TOKEN, env.TELE_MINI_APP_LINK, user.telegramId, keyword, totalCount, ksList as any, link)
+        const feedItems = ksList.map((k) => ({
+          Id: k.id,
+          FeedId: k.feed_id,
+          GUID: k.guid,
+          ChannelId: k.channel_id,
+          Title: k.title,
+          Link: k.link,
+          PubDate: k.pub_date,
+          Author: k.author,
+          ImageUrl: k.image_url,
+          EnclosureUrl: k.enclosure_url,
+          EnclosureLength: k.enclosure_length,
+          EnclosureType: k.enclosure_type,
+          Duration: k.duration,
+          ChannelTitle: k.channel_title,
+          FeedLink: k.feed_link,
+        } as import('../models/feeds').FeedItem))
+        sendSubscriptionNewUpdateMessage(env.TELE_BOT_TOKEN, env.TELE_MINI_APP_LINK, user.telegramId, keyword, totalCount, feedItems, link)
       }
 
       if (user.email) {
