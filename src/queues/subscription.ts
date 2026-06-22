@@ -1,9 +1,8 @@
 import { eq, and, desc, sql } from 'drizzle-orm'
 import { createDb } from '../db/client'
 import { userSubscription, userInfo, keywordSubscription, feedItem } from '../db/schema'
-import { searchPodcastEpisodeFromItunes } from '../utils/itunes'
+import { searchPodcastEpisodeFromItunes, buildFeedItemAndKeywordInputList, ItunesRateLimitError } from '../utils/itunes'
 import { searchSpotifyEpisodes } from '../utils/spotify'
-import { buildFeedItemAndKeywordInputList } from '../utils/itunes'
 import { logger } from '../utils/logger'
 import { sendSubscriptionNewUpdateMessage } from '../telegram/bot'
 import { sendSubscriptionUpdateEmail } from '../email/resend'
@@ -49,8 +48,14 @@ export async function handleSubscriptionUpdate(
   env: Env,
   ctx: ExecutionContext
 ) {
+  let rateLimited = false
   for (const msg of batch.messages) {
     const { userId, keyword, country, source, excludeFeedId, latestId } = msg.body as SubscriptionUpdateMessage
+
+    if (rateLimited && source === PODCAST_SOURCES.ITUNES) {
+      msg.ack()
+      continue
+    }
 
     try {
       let feedItemList: FeedItemType[]
@@ -115,6 +120,10 @@ export async function handleSubscriptionUpdate(
 
       msg.ack()
     } catch (error) {
+      if (error instanceof ItunesRateLimitError) {
+        rateLimited = true
+        logger.warn('iTunes API rate limited, aborting remaining iTunes requests in this batch')
+      }
       logger.error(`Failed to process subscription: ${userId}/${keyword}`, error)
       if (msg.attempts < 3) {
         msg.retry()

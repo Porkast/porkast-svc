@@ -5,12 +5,31 @@ import Parser from "rss-parser"
 import { logger } from "./logger"
 import { feedItem, keywordSubscription } from "../db/schema"
 
+export class ItunesRateLimitError extends Error {
+  retryAfter: number
+  constructor(retryAfter: number) {
+    super('iTunes API rate limited')
+    this.name = 'ItunesRateLimitError'
+    this.retryAfter = retryAfter
+  }
+}
+
+async function checkItunesResponse(res: Response): Promise<void> {
+  if (res.status === 429) {
+    const retryAfter = parseInt(res.headers.get('Retry-After') || '60', 10)
+    throw new ItunesRateLimitError(retryAfter)
+  }
+  if (!res.ok) {
+    throw new Error(`iTunes API error: ${res.status} ${res.statusText}`)
+  }
+}
 
 export const searchPodcastEpisodeFromItunes = async (q: string, entity: string, country: string, excludeFeedId: string, offset: number, limit: number, totalCount: number): Promise<FeedItem[]> => {
     const searchUrl = `https://itunes.apple.com/search?term=${q}&entity=${entity}&media=podcast&country=${country}&limit=${totalCount}`
     const res = await fetch(searchUrl)
     logger.debug(`search url: ${searchUrl}`)
 
+    await checkItunesResponse(res)
     const jsonRespJson = await res.json();
     logger.debug(`search result: ${JSON.stringify(jsonRespJson)}`)
     const jsonResp = jsonRespJson as iTunesResponse
@@ -134,6 +153,7 @@ export const buildFeedItemAndKeywordInputList = async (keyword: string, country:
 
 export const getPodcastEpisodeInfo = async (podcastId: string, episodeId: string): Promise<{ podcast: FeedChannel, episode: FeedItem }> => {
     const res = await fetch(`https://itunes.apple.com/lookup?id=${podcastId}&entity=podcast`)
+    await checkItunesResponse(res)
     const jsonResp = await res.json() as { results?: Array<{ feedUrl?: string }> }
     const podcastInfo = jsonResp?.results?.[0]
     if (!podcastInfo?.feedUrl) {
