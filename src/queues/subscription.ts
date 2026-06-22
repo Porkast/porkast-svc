@@ -17,6 +17,10 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
   return chunks
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 async function getLatestPubDateForSubscription(
   db: ReturnType<typeof createDb>,
   keyword: string,
@@ -60,6 +64,7 @@ export async function handleSubscriptionUpdate(
     try {
       let feedItemList: FeedItemType[]
       if (source === PODCAST_SOURCES.ITUNES) {
+        await delay(Math.random() * 3000 + 500)
         feedItemList = await searchPodcastEpisodeFromItunes(keyword, 'podcastEpisode', country, excludeFeedId, 0, 0, 200)
       } else if (source === PODCAST_SOURCES.SPOTIFY) {
         feedItemList = await searchSpotifyEpisodes(keyword, country, 50, 0)
