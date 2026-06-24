@@ -9,6 +9,8 @@ export interface Env {
   RESEND_API_KEY: string
   SPOTIFY_CLIENT_ID: string
   SPOTIFY_CLIENT_SECRET: string
+  PODCAST_INDEX_API_KEY: string
+  PODCAST_INDEX_API_SECRET: string
   PORKAST_WEB_BASE_URL: string
   TELE_MINI_APP_LINK: string
   DEMO_EMAILS: string

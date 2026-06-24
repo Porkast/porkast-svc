@@ -4,11 +4,13 @@ import { userSubscription } from '../db/schema'
 import { logger } from '../utils/logger'
 import { setupTelegramWebhook } from '../telegram/bot.setup'
 import { setSpotifyCredentials } from '../utils/spotify'
+import { setPodcastIndexCredentials } from '../utils/podcast-index'
 import type { Env, SubscriptionUpdateMessage } from '../env'
 
 export async function handleCron(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
   ctx.waitUntil(setupTelegramWebhook(env))
   setSpotifyCredentials(env.SPOTIFY_CLIENT_ID, env.SPOTIFY_CLIENT_SECRET)
+  setPodcastIndexCredentials(env.PODCAST_INDEX_API_KEY, env.PODCAST_INDEX_API_SECRET)
 
   const db = createDb(env.DB)
 

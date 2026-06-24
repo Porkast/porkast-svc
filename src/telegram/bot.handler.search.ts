@@ -7,7 +7,8 @@ import { getUserInfoByTelegramId } from '../db/user';
 import { logger } from '../utils/logger';
 import { SEARCH_COMMAND } from './bot.types';
 import { DEFAULT_PODCAST_SOURCE } from '../models/types';
-import { getPodcastEpisodeInfo, searchPodcastEpisodeFromItunes } from '../utils/itunes';
+import { getPodcastEpisodeInfo } from '../utils/itunes';
+import { searchEpisodesFromPodcastIndex } from '../utils/podcast-index';
 import type { Env } from '../env';
 import type { DbClient } from '../db/types';
 
@@ -19,7 +20,7 @@ export async function handleSearch(env: Env, chatId: number, keyword: string, pa
         const SEARCH_PAGE_SIZE = 10;
         const offset = page * SEARCH_PAGE_SIZE;
         const totalCount = 200;
-        const feedItems = await searchPodcastEpisodeFromItunes(keyword, 'podcastEpisode', 'US', '', offset, SEARCH_PAGE_SIZE, totalCount);
+        const feedItems = await searchEpisodesFromPodcastIndex(keyword, 'US', '', offset, SEARCH_PAGE_SIZE, totalCount);
 
         if (feedItems.length === 0) {
             logger.debug(`No results found for "${keyword}"`);

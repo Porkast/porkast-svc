@@ -3,7 +3,8 @@
  */
 export const PODCAST_SOURCES = {
     ITUNES: 'itunes',
-    SPOTIFY: 'spotify'
+    SPOTIFY: 'spotify',
+    PODCAST_INDEX: 'podcast_index'
 } as const;
 
 /**
@@ -28,6 +29,8 @@ export function getPodcastSource(sourceString: string): PodcastSource | null {
             return PODCAST_SOURCES.ITUNES;
         case PODCAST_SOURCES.SPOTIFY:
             return PODCAST_SOURCES.SPOTIFY;
+        case PODCAST_SOURCES.PODCAST_INDEX:
+            return PODCAST_SOURCES.PODCAST_INDEX;
         default:
             return null;
     }
@@ -53,6 +56,8 @@ export function getPodcastSourceDisplayName(source: PodcastSource): string {
             return 'iTunes';
         case PODCAST_SOURCES.SPOTIFY:
             return 'Spotify';
+        case PODCAST_SOURCES.PODCAST_INDEX:
+            return 'Podcast Index';
         default:
             return 'Unknown';
     }
@@ -63,8 +68,9 @@ export function getPodcastSourceDisplayName(source: PodcastSource): string {
  */
 export const VALID_PODCAST_SOURCES: readonly PodcastSource[] = [
     PODCAST_SOURCES.ITUNES,
-    PODCAST_SOURCES.SPOTIFY
+    PODCAST_SOURCES.SPOTIFY,
+    PODCAST_SOURCES.PODCAST_INDEX,
 ] as const;
 
 
-export const DEFAULT_PODCAST_SOURCE = PODCAST_SOURCES.ITUNES
+export const DEFAULT_PODCAST_SOURCE = PODCAST_SOURCES.PODCAST_INDEX
