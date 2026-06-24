@@ -73,4 +73,4 @@ export const VALID_PODCAST_SOURCES: readonly PodcastSource[] = [
 ] as const;
 
 
-export const DEFAULT_PODCAST_SOURCE = PODCAST_SOURCES.PODCAST_INDEX
+export const DEFAULT_PODCAST_SOURCE = PODCAST_SOURCES.ITUNES
