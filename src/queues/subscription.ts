@@ -3,6 +3,7 @@ import { createDb } from '../db/client'
 import { userSubscription, userInfo, keywordSubscription, feedItem } from '../db/schema'
 import { searchPodcastEpisodeFromItunes, buildFeedItemAndKeywordInputList, ItunesRateLimitError } from '../utils/itunes'
 import { searchSpotifyEpisodes } from '../utils/spotify'
+import { searchEpisodesFromPodcastIndex } from '../utils/podcast-index'
 import { logger } from '../utils/logger'
 import { sendSubscriptionNewUpdateMessage } from '../telegram/bot'
 import { sendSubscriptionUpdateEmail } from '../email/resend'
@@ -68,6 +69,9 @@ export async function handleSubscriptionUpdate(
         feedItemList = await searchPodcastEpisodeFromItunes(keyword, 'podcastEpisode', country, excludeFeedId, 0, 0, 200)
       } else if (source === PODCAST_SOURCES.SPOTIFY) {
         feedItemList = await searchSpotifyEpisodes(keyword, country, 50, 0)
+      } else if (source === PODCAST_SOURCES.PODCAST_INDEX) {
+        await delay(Math.random() * 1000 + 200)
+        feedItemList = await searchEpisodesFromPodcastIndex(keyword, country, excludeFeedId, 0, 0, 200)
       } else {
         feedItemList = []
       }

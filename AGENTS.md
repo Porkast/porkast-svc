@@ -91,6 +91,12 @@ bun test
 - Each functional module includes: route files, business logic files, type definition files, and test files
 - Use `@hono/zod-validator` for request validation
 
+### Git Commit & Push
+
+- Every `git commit` and `git push` requires explicit user approval before execution
+- Approval must be obtained fresh each time — previous approval in the same session does not carry over
+- Before requesting approval, show the user `git diff --stat` and `git diff` (or a summary) so they can review what will be committed
+
 ### Database Schema
 
 - Use Drizzle ORM schema definitions in `src/db/schema.ts`

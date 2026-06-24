@@ -4,6 +4,7 @@ import { SubscriptionDataDto } from "../models/subscription"
 import { FeedItem, FeedItemDto } from "../models/feeds"
 import { formatDateTime, generateFeedItemId } from "../utils/common"
 import { searchPodcastEpisodeFromItunes } from "../utils/itunes"
+import { searchEpisodesFromPodcastIndex } from "../utils/podcast-index"
 import { logger } from "../utils/logger"
 import { searchSpotifyEpisodes } from "../utils/spotify"
 import { PODCAST_SOURCES } from "../models/types"
@@ -213,8 +214,11 @@ export async function doSearchSubscription(
   if (source == PODCAST_SOURCES.ITUNES) {
     const searchResult = await searchPodcastEpisodeFromItunes(keyword, 'podcastEpisode', country, excludeFeedId, 0, 0, 200)
     searchResultItemList.push(...searchResult)
-  } else {
+  } else if (source == PODCAST_SOURCES.SPOTIFY) {
     const searchResult = await searchSpotifyEpisodes(keyword, country, 50, 0)
+    searchResultItemList.push(...searchResult)
+  } else if (source == PODCAST_SOURCES.PODCAST_INDEX) {
+    const searchResult = await searchEpisodesFromPodcastIndex(keyword, country, excludeFeedId, 0, 0, 200)
     searchResultItemList.push(...searchResult)
   }
 

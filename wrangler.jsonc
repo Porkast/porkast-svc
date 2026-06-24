@@ -44,6 +44,8 @@
 	"vars": {
 		"PORKAST_WEB_BASE_URL": "https://porkast.com",
 		"TELE_MINI_APP_LINK": "https://porkast-tele-mini-app.guoshaotech.workers.dev",
+		"PODCAST_INDEX_API_KEY": "",
+		"PODCAST_INDEX_API_SECRET": "",
 		"NODE_ENV": "production"
 	},
 	"observability": {

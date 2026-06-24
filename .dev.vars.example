@@ -9,3 +9,5 @@ TELE_MINI_APP_LINK=https://domain.com
 DEMO_EMAILS=test@porkast.com
 DEMO_CODE=000000
 NODE_ENV=development
+PODCAST_INDEX_API_KEY=your_podcast_index_api_key
+PODCAST_INDEX_API_SECRET=your_podcast_index_api_secret
