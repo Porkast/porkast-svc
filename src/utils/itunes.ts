@@ -4,14 +4,16 @@ import { iTunesResponse, PodcastFeed, PodcastItem } from "../models/itunes"
 import Parser from "rss-parser"
 import { logger } from "./logger"
 import { feedItem, keywordSubscription } from "../db/schema"
-import { ProxyAgent, fetch as undiciFetch } from 'undici'
+import { proxyFetch } from './proxy-fetch'
 
 let itunesFetch: typeof globalThis.fetch = globalThis.fetch
 
 export function initItunesProxy(proxyUrl: string): void {
   if (!proxyUrl) return
-  const agent = new ProxyAgent(proxyUrl)
-  itunesFetch = ((url: string | URL | Request, init?: RequestInit) => undiciFetch(url as any, { ...init as any, dispatcher: agent })) as unknown as typeof globalThis.fetch
+  itunesFetch = ((url: string | URL | Request, _init?: RequestInit) => {
+    const urlStr = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url
+    return proxyFetch(urlStr, proxyUrl)
+  }) as unknown as typeof globalThis.fetch
 }
 
 export class ItunesRateLimitError extends Error {
