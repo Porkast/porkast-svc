@@ -1,7 +1,7 @@
 import { eq, and, desc, sql } from 'drizzle-orm'
 import { createDb } from '../db/client'
 import { userSubscription, userInfo, keywordSubscription, feedItem } from '../db/schema'
-import { searchPodcastEpisodeFromItunes, buildFeedItemAndKeywordInputList, ItunesRateLimitError } from '../utils/itunes'
+import { searchPodcastEpisodeFromItunes, buildFeedItemAndKeywordInputList, ItunesRateLimitError, initItunesProxy } from '../utils/itunes'
 import { searchSpotifyEpisodes } from '../utils/spotify'
 import { searchEpisodesFromPodcastIndex } from '../utils/podcast-index'
 import { logger } from '../utils/logger'
@@ -54,6 +54,7 @@ export async function handleSubscriptionUpdate(
   ctx: ExecutionContext
 ) {
   let rateLimited = false
+  initItunesProxy(env.WEBSHARE_PROXY_URL)
   for (const msg of batch.messages) {
     const { userId, keyword, country, source, excludeFeedId, latestId } = msg.body as SubscriptionUpdateMessage
 

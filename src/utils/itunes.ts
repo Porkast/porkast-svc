@@ -4,6 +4,15 @@ import { iTunesResponse, PodcastFeed, PodcastItem } from "../models/itunes"
 import Parser from "rss-parser"
 import { logger } from "./logger"
 import { feedItem, keywordSubscription } from "../db/schema"
+import { ProxyAgent, fetch as undiciFetch } from 'undici'
+
+let itunesFetch: typeof globalThis.fetch = globalThis.fetch
+
+export function initItunesProxy(proxyUrl: string): void {
+  if (!proxyUrl) return
+  const agent = new ProxyAgent(proxyUrl)
+  itunesFetch = ((url: string | URL | Request, init?: RequestInit) => undiciFetch(url as any, { ...init as any, dispatcher: agent })) as unknown as typeof globalThis.fetch
+}
 
 export class ItunesRateLimitError extends Error {
   retryAfter: number
@@ -26,7 +35,7 @@ async function checkItunesResponse(res: Response): Promise<void> {
 
 export const searchPodcastEpisodeFromItunes = async (q: string, entity: string, country: string, excludeFeedId: string, offset: number, limit: number, totalCount: number): Promise<FeedItem[]> => {
     const searchUrl = `https://itunes.apple.com/search?term=${q}&entity=${entity}&media=podcast&country=${country}&limit=${totalCount}`
-    const res = await fetch(searchUrl)
+    const res = await itunesFetch(searchUrl)
     logger.debug(`search url: ${searchUrl}`)
 
     await checkItunesResponse(res)
@@ -152,7 +161,7 @@ export const buildFeedItemAndKeywordInputList = async (keyword: string, country:
 }
 
 export const getPodcastEpisodeInfo = async (podcastId: string, episodeId: string): Promise<{ podcast: FeedChannel, episode: FeedItem }> => {
-    const res = await fetch(`https://itunes.apple.com/lookup?id=${podcastId}&entity=podcast`)
+    const res = await itunesFetch(`https://itunes.apple.com/lookup?id=${podcastId}&entity=podcast`)
     await checkItunesResponse(res)
     const jsonResp = await res.json() as { results?: Array<{ feedUrl?: string }> }
     const podcastInfo = jsonResp?.results?.[0]

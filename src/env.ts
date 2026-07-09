@@ -16,6 +16,7 @@ export interface Env {
   DEMO_EMAILS: string
   DEMO_CODE: string
   NODE_ENV: string
+  WEBSHARE_PROXY_URL: string
 }
 
 export interface SubscriptionUpdateMessage {
