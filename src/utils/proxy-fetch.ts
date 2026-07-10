@@ -90,7 +90,7 @@ export async function proxyFetch(url: string, proxyUrl: string): Promise<Respons
     throw new Error(`Proxy CONNECT failed: ${connectStatus}`)
   }
 
-  const tlsSocket = socket.startTls({ expectedServerHostname: targetHost })
+  const tlsSocket = socket.startTls()
 
   const tlsWriter = tlsSocket.writable.getWriter()
   await tlsWriter.write(
