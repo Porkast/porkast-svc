@@ -64,7 +64,10 @@ export async function proxyFetch(url: string, proxyUrl: string): Promise<Respons
   const targetHost = targetUrl.hostname
   const targetPort = parseInt(targetUrl.port) || 443
 
-  const socket = connect({ hostname: proxyHost, port: proxyPort })
+  const socket = connect(
+    { hostname: proxyHost, port: proxyPort },
+    { secureTransport: 'starttls', allowHalfOpen: false }
+  )
   await socket.opened
 
   let connectReq = `CONNECT ${targetHost}:${targetPort} HTTP/1.1\r\nHost: ${targetHost}:${targetPort}\r\n`
