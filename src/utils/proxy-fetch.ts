@@ -1,10 +1,4 @@
-import net from 'node:net'
-import tls from 'node:tls'
-
-interface StreamSocket {
-  readable: ReadableStream<Uint8Array>
-  writable: WritableStream<Uint8Array>
-}
+import { connect } from 'cloudflare:sockets'
 
 interface HttpHeaders {
   statusLine: string
@@ -70,13 +64,8 @@ export async function proxyFetch(url: string, proxyUrl: string): Promise<Respons
   const targetHost = targetUrl.hostname
   const targetPort = parseInt(targetUrl.port) || 443
 
-  const socket = net.connect({ host: proxyHost, port: proxyPort })
-  const sock = socket as unknown as StreamSocket
-
-  await new Promise<void>((resolve, reject) => {
-    socket.once('connect', resolve)
-    socket.once('error', reject)
-  })
+  const socket = connect({ hostname: proxyHost, port: proxyPort })
+  await socket.opened
 
   let connectReq = `CONNECT ${targetHost}:${targetPort} HTTP/1.1\r\nHost: ${targetHost}:${targetPort}\r\n`
   if (proxyAuth) {
@@ -84,32 +73,23 @@ export async function proxyFetch(url: string, proxyUrl: string): Promise<Respons
   }
   connectReq += '\r\n'
 
-  const writer = sock.writable.getWriter()
+  const writer = socket.writable.getWriter()
   await writer.write(encode(connectReq))
   writer.releaseLock()
 
-  const reader = sock.readable.getReader()
+  const reader = socket.readable.getReader()
   const { statusLine: connectStatus } = await readHeadersFromStream(reader)
   reader.releaseLock()
 
   const connectCode = parseInt(connectStatus.match(/^HTTP\/\d\.\d\s+(\d+)/)?.[1] || '0')
   if (connectCode !== 200) {
-    socket.destroy()
+    socket.close()
     throw new Error(`Proxy CONNECT failed: ${connectStatus}`)
   }
 
-  const tlsSocket = tls.connect({
-    socket,
-    servername: targetHost,
-  })
-  const tlsSock = tlsSocket as unknown as StreamSocket
+  const tlsSocket = socket.startTls({ expectedServerHostname: targetHost })
 
-  await new Promise<void>((resolve, reject) => {
-    tlsSocket.once('secureConnect', resolve)
-    tlsSocket.once('error', reject)
-  })
-
-  const tlsWriter = tlsSock.writable.getWriter()
+  const tlsWriter = tlsSocket.writable.getWriter()
   await tlsWriter.write(
     encode(
       `GET ${targetUrl.pathname}${targetUrl.search} HTTP/1.1\r\n` +
@@ -121,7 +101,7 @@ export async function proxyFetch(url: string, proxyUrl: string): Promise<Respons
   )
   tlsWriter.releaseLock()
 
-  const tlsReader = tlsSock.readable.getReader()
+  const tlsReader = tlsSocket.readable.getReader()
   const { statusLine, headers: respHeaders, rest } =
     await readHeadersFromStream(tlsReader)
   const body = await readRemainingFromStream(tlsReader, rest)
