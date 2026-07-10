@@ -94,7 +94,6 @@ export async function proxyFetch(url: string, proxyUrl: string): Promise<Respons
   const tlsSocket = tls.connect({
     socket,
     servername: targetHost,
-    rejectUnauthorized: false,
   })
   await new Promise<void>((resolve, reject) => {
     tlsSocket.once('secureConnect', resolve)
