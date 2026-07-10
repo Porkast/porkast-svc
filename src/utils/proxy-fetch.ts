@@ -1,4 +1,5 @@
 import { connect } from 'cloudflare:sockets'
+import tls from 'node:tls'
 
 interface HttpHeaders {
   statusLine: string
@@ -35,17 +36,56 @@ async function readHeadersFromStream(
   }
 }
 
-async function readRemainingFromStream(
-  reader: ReadableStreamDefaultReader<Uint8Array>,
-  initial: Buffer
-): Promise<Buffer> {
+function collectSocketData(socket: tls.TLSSocket, initial: Buffer): Promise<Buffer> {
   const chunks: Buffer[] = [initial]
-  while (true) {
-    const { value, done } = await reader.read()
-    if (done) break
-    if (value) chunks.push(Buffer.from(value))
-  }
-  return Buffer.concat(chunks)
+  return new Promise((resolve, reject) => {
+    const onData = (chunk: Buffer) => chunks.push(chunk)
+    const onEnd = () => { cleanup(); resolve(Buffer.concat(chunks)) }
+    const onError = (err: Error) => { cleanup(); reject(err) }
+    const cleanup = () => {
+      socket.off('data', onData)
+      socket.off('end', onEnd)
+      socket.off('error', onError)
+    }
+    socket.on('data', onData)
+    socket.on('end', onEnd)
+    socket.on('error', onError)
+  })
+}
+
+function readTlsHeaders(socket: tls.TLSSocket): Promise<HttpHeaders> {
+  const chunks: Buffer[] = []
+  return new Promise((resolve, reject) => {
+    const onData = (chunk: Buffer) => {
+      chunks.push(chunk)
+      const buf = Buffer.concat(chunks)
+      const idx = buf.indexOf('\r\n\r\n')
+      if (idx !== -1) {
+        socket.off('data', onData)
+        socket.off('error', onError)
+        const headerBlock = buf.toString('utf-8', 0, idx)
+        const lines = headerBlock.split('\r\n')
+        const statusLine = lines[0]
+        const headers = new Map<string, string>()
+        for (let i = 1; i < lines.length; i++) {
+          const colonIdx = lines[i].indexOf(':')
+          if (colonIdx > 0) {
+            headers.set(
+              lines[i].slice(0, colonIdx).trim().toLowerCase(),
+              lines[i].slice(colonIdx + 1).trim()
+            )
+          }
+        }
+        resolve({ statusLine, headers, rest: buf.subarray(idx + 4) })
+      }
+    }
+    const onError = (err: Error) => {
+      socket.off('data', onData)
+      reject(err)
+    }
+    socket.on('data', onData)
+    socket.on('error', onError)
+  })
 }
 
 function encode(data: string): Uint8Array {
@@ -64,10 +104,7 @@ export async function proxyFetch(url: string, proxyUrl: string): Promise<Respons
   const targetHost = targetUrl.hostname
   const targetPort = parseInt(targetUrl.port) || 443
 
-  const socket = connect(
-    { hostname: proxyHost, port: proxyPort },
-    { secureTransport: 'starttls', allowHalfOpen: false }
-  )
+  const socket = connect({ hostname: proxyHost, port: proxyPort })
   await socket.opened
 
   let connectReq = `CONNECT ${targetHost}:${targetPort} HTTP/1.1\r\nHost: ${targetHost}:${targetPort}\r\n`
@@ -90,24 +127,25 @@ export async function proxyFetch(url: string, proxyUrl: string): Promise<Respons
     throw new Error(`Proxy CONNECT failed: ${connectStatus}`)
   }
 
-  const tlsSocket = socket.startTls()
+  const tlsSocket = tls.connect({
+    socket: socket as unknown as import('node:net').Socket,
+    servername: targetHost,
+  })
+  await new Promise<void>((resolve, reject) => {
+    tlsSocket.once('secureConnect', resolve)
+    tlsSocket.once('error', reject)
+  })
 
-  const tlsWriter = tlsSocket.writable.getWriter()
-  await tlsWriter.write(
-    encode(
-      `GET ${targetUrl.pathname}${targetUrl.search} HTTP/1.1\r\n` +
-        `Host: ${targetHost}\r\n` +
-        `Accept: */*\r\n` +
-        `Connection: close\r\n` +
-        `\r\n`
-    )
+  tlsSocket.write(
+    `GET ${targetUrl.pathname}${targetUrl.search} HTTP/1.1\r\n` +
+      `Host: ${targetHost}\r\n` +
+      `Accept: */*\r\n` +
+      `Connection: close\r\n` +
+      `\r\n`
   )
-  tlsWriter.releaseLock()
 
-  const tlsReader = tlsSocket.readable.getReader()
-  const { statusLine, headers: respHeaders, rest } =
-    await readHeadersFromStream(tlsReader)
-  const body = await readRemainingFromStream(tlsReader, rest)
+  const { statusLine, headers: respHeaders, rest } = await readTlsHeaders(tlsSocket)
+  const body = await collectSocketData(tlsSocket, rest)
 
   const statusMatch = statusLine.match(/^HTTP\/\d\.\d\s+(\d+)\s*(.*)/)
   const status = parseInt(statusMatch?.[1] || '502')
