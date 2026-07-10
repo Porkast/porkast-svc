@@ -1,10 +1,15 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
+import { eq } from 'drizzle-orm'
 import { KeywordSubscribeRequestData, KeywordSubscribeSchema } from "./types";
 import { getUserSubscriptionEpisodeList, getUserSubscriptionList, updateUserSubscription } from "./subscribe";
 import { disableUserKeywordSubscription, queryKeywordSubscriptionFeedItemList, queryUserKeywordSubscriptionDetail } from "../../db/subscription";
 import { createDb } from "../../db/client";
-import type { Env } from "../../env";
+import { userSubscription } from '../../db/schema'
+import { setSpotifyCredentials } from '../../utils/spotify'
+import { setPodcastIndexCredentials } from '../../utils/podcast-index'
+import { initItunesProxy } from '../../utils/itunes'
+import type { Env, SubscriptionUpdateMessage } from "../../env";
 
 export const subscribeRouter = new Hono<{ Bindings: Env }>()
 
@@ -130,3 +135,30 @@ subscribeRouter.delete('/:userId/:keyword', async (c) => {
 
     return c.json(resp);
 });
+
+subscribeRouter.post('/trigger-update', async (c) => {
+  setSpotifyCredentials(c.env.SPOTIFY_CLIENT_ID, c.env.SPOTIFY_CLIENT_SECRET)
+  setPodcastIndexCredentials(c.env.PODCAST_INDEX_API_KEY, c.env.PODCAST_INDEX_API_SECRET)
+  initItunesProxy(c.env.WEBSHARE_PROXY_URL)
+
+  const db = createDb(c.env.DB)
+  const subscriptions = await db.select().from(userSubscription).where(eq(userSubscription.status, 1))
+
+  const messages: SubscriptionUpdateMessage[] = subscriptions.map(sub => ({
+    userId: sub.userId || '',
+    keyword: sub.keyword || '',
+    country: sub.country || '',
+    source: sub.source || '',
+    excludeFeedId: sub.excludeFeedId || '',
+    subscriptionId: sub.id,
+    latestId: sub.latestId || 0,
+  }))
+
+  for (let i = 0; i < messages.length; i += 100) {
+    await c.env.SUB_UPDATE_QUEUE.sendBatch(
+      messages.slice(i, i + 100).map(body => ({ body }))
+    )
+  }
+
+  return c.json({ code: 0, msg: `Enqueued ${messages.length} subscription updates` })
+})
