@@ -34,10 +34,10 @@ async function handleItunesFetch(path: string, search: string): Promise<Response
   }
   if (containerNs) {
     const container = containerNs.getByName("singleton")
-    await container.startAndWaitForPorts({
-      startOptions: { envVars: { WEBSHARE_PROXY_URL: webshareProxyUrl } }
+    await container.startAndWaitForPorts()
+    return container.fetch(`http://container${path}${search}`, {
+      headers: { 'X-Proxy-Url': webshareProxyUrl }
     })
-    return container.fetch(`http://container${path}${search}`)
   }
   throw new Error('No iTunes proxy configured')
 }

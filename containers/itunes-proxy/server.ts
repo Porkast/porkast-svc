@@ -1,13 +1,14 @@
 import { ProxyAgent, fetch as undiciFetch } from 'undici'
 
-const proxyUrl = process.env.WEBSHARE_PROXY_URL || ''
-const proxyAgent = proxyUrl ? new ProxyAgent(proxyUrl) : null
+const proxyUrlFromEnv = process.env.WEBSHARE_PROXY_URL || ''
 
 const server = Bun.serve({
   port: 8080,
   async fetch(req) {
     const url = new URL(req.url)
     const path = url.pathname
+    const proxyUrl = req.headers.get('X-Proxy-Url') || proxyUrlFromEnv
+    const proxyAgent = proxyUrl ? new ProxyAgent(proxyUrl) : null
 
     if (path === '/health') {
       return new Response('OK')
