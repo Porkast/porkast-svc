@@ -2,9 +2,20 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "porkast-svc",
 	"main": "src/index.ts",
+	"alias": {
+		"@cloudflare/containers": "./src/containers/local-container-stub.ts"
+	},
 	"compatibility_date": "2025-05-14",
 	"compatibility_flags": [
 		"nodejs_compat"
+	],
+	"containers": [
+		{
+			"class_name": "ItunesProxyContainer",
+			"image": "./containers/itunes-proxy/Dockerfile",
+			"instance_type": "basic",
+			"max_instances": 3
+		}
 	],
 	"triggers": {
 		"crons": [
@@ -39,6 +50,20 @@
 		{
 			"binding": "TELEGRAM_STATE",
 			"id": "9135af4ce7db496381846e68f6c8a42b"
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "ITUNES_PROXY",
+				"class_name": "ItunesProxyContainer"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["ItunesProxyContainer"]
 		}
 	],
 	"vars": {

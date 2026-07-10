@@ -17,6 +17,8 @@ export interface Env {
   DEMO_CODE: string
   NODE_ENV: string
   WEBSHARE_PROXY_URL: string
+  ITUNES_PROXY_BASE_URL: string
+  ITUNES_PROXY: any
 }
 
 export interface SubscriptionUpdateMessage {

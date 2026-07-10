@@ -11,5 +11,5 @@
     "noEmit": true,
     "isolatedModules": true
   },
-  "exclude": ["src/**/*.test.ts", "src/scripts/migrate-pg-to-d1.ts"]
+  "exclude": ["src/**/*.test.ts", "src/scripts/migrate-pg-to-d1.ts", "containers"]
 }

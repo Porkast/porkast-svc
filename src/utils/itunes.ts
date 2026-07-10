@@ -4,16 +4,22 @@ import { iTunesResponse, PodcastFeed, PodcastItem } from "../models/itunes"
 import Parser from "rss-parser"
 import { logger } from "./logger"
 import { feedItem, keywordSubscription } from "../db/schema"
-import { proxyFetch } from './proxy-fetch'
 
 let itunesFetch: typeof globalThis.fetch = globalThis.fetch
+let proxyBaseUrl: string = ''
 
-export function initItunesProxy(proxyUrl: string): void {
-  if (!proxyUrl) return
-  itunesFetch = ((url: string | URL | Request, _init?: RequestInit) => {
-    const urlStr = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url
-    return proxyFetch(urlStr, proxyUrl)
-  }) as unknown as typeof globalThis.fetch
+export function initItunesProxy(baseUrl: string): void {
+  proxyBaseUrl = baseUrl
+  if (proxyBaseUrl) {
+    itunesFetch = ((url: string | URL | Request, _init?: RequestInit) => {
+      const urlStr = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url
+      const targetUrl = new URL(urlStr)
+      const path = targetUrl.pathname === '/search' ? '/search' : '/lookup'
+      return fetch(`${proxyBaseUrl}${path}${targetUrl.search}`)
+    }) as unknown as typeof globalThis.fetch
+  } else {
+    itunesFetch = globalThis.fetch
+  }
 }
 
 export class ItunesRateLimitError extends Error {

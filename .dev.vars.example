@@ -12,3 +12,4 @@ NODE_ENV=development
 PODCAST_INDEX_API_KEY=your_podcast_index_api_key
 PODCAST_INDEX_API_SECRET=your_podcast_index_api_secret
 WEBSHARE_PROXY_URL=your_webshare_proxy_url
+ITUNES_PROXY_BASE_URL=http://localhost:8080

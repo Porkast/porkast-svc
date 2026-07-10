@@ -1,0 +1,10 @@
+{
+  "name": "itunes-proxy",
+  "scripts": {
+    "start": "bun run server.ts",
+    "dev": "bun --watch server.ts"
+  },
+  "dependencies": {
+    "undici": "^8.7.0"
+  }
+}
