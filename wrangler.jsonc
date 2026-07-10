@@ -2,9 +2,6 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "porkast-svc",
 	"main": "src/index.ts",
-	"alias": {
-		"@cloudflare/containers": "./src/containers/local-container-stub.ts"
-	},
 	"compatibility_date": "2025-05-14",
 	"compatibility_flags": [
 		"nodejs_compat"
