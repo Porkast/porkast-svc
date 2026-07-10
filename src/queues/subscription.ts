@@ -54,7 +54,7 @@ export async function handleSubscriptionUpdate(
   ctx: ExecutionContext
 ) {
   let rateLimited = false
-  initItunesProxy(env.ITUNES_PROXY_BASE_URL || '')
+  initItunesProxy(env)
   for (const msg of batch.messages) {
     const { userId, keyword, country, source, excludeFeedId, latestId } = msg.body as SubscriptionUpdateMessage
 

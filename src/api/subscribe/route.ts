@@ -139,7 +139,7 @@ subscribeRouter.delete('/:userId/:keyword', async (c) => {
 subscribeRouter.post('/trigger-update', async (c) => {
   setSpotifyCredentials(c.env.SPOTIFY_CLIENT_ID, c.env.SPOTIFY_CLIENT_SECRET)
   setPodcastIndexCredentials(c.env.PODCAST_INDEX_API_KEY, c.env.PODCAST_INDEX_API_SECRET)
-  initItunesProxy(c.env.WEBSHARE_PROXY_URL)
+  initItunesProxy(c.env)
 
   const db = createDb(c.env.DB)
   const subscriptions = await db.select().from(userSubscription).where(eq(userSubscription.status, 1))

@@ -34,7 +34,7 @@ app.use('*', dbMiddleware)
 app.use('*', async (c, next) => {
   setSpotifyCredentials(c.env.SPOTIFY_CLIENT_ID, c.env.SPOTIFY_CLIENT_SECRET)
   setPodcastIndexCredentials(c.env.PODCAST_INDEX_API_KEY, c.env.PODCAST_INDEX_API_SECRET)
-  initItunesProxy(c.env.ITUNES_PROXY_BASE_URL || '')
+  initItunesProxy(c.env)
   await next()
 })
 

@@ -4,22 +4,42 @@ import { iTunesResponse, PodcastFeed, PodcastItem } from "../models/itunes"
 import Parser from "rss-parser"
 import { logger } from "./logger"
 import { feedItem, keywordSubscription } from "../db/schema"
+import type { Env } from "../env"
 
 let itunesFetch: typeof globalThis.fetch = globalThis.fetch
 let proxyBaseUrl: string = ''
+let containerNs: any = null
+let webshareProxyUrl: string = ''
 
-export function initItunesProxy(baseUrl: string): void {
-  proxyBaseUrl = baseUrl
-  if (proxyBaseUrl) {
+export function initItunesProxy(env: Env): void {
+  proxyBaseUrl = env.ITUNES_PROXY_BASE_URL || ''
+  containerNs = env.ITUNES_PROXY
+  webshareProxyUrl = env.WEBSHARE_PROXY_URL || ''
+
+  if (proxyBaseUrl || containerNs) {
     itunesFetch = ((url: string | URL | Request, _init?: RequestInit) => {
       const urlStr = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url
       const targetUrl = new URL(urlStr)
       const path = targetUrl.pathname === '/search' ? '/search' : '/lookup'
-      return fetch(`${proxyBaseUrl}${path}${targetUrl.search}`)
+      return handleItunesFetch(path, targetUrl.search)
     }) as unknown as typeof globalThis.fetch
   } else {
     itunesFetch = globalThis.fetch
   }
+}
+
+async function handleItunesFetch(path: string, search: string): Promise<Response> {
+  if (proxyBaseUrl) {
+    return fetch(`${proxyBaseUrl}${path}${search}`)
+  }
+  if (containerNs) {
+    const container = containerNs.getByName("singleton")
+    await container.startAndWaitForPorts({
+      startOptions: { envVars: { WEBSHARE_PROXY_URL: webshareProxyUrl } }
+    })
+    return container.fetch(`http://container${path}${search}`)
+  }
+  throw new Error('No iTunes proxy configured')
 }
 
 export class ItunesRateLimitError extends Error {
