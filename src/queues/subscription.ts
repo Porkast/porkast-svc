@@ -1,7 +1,7 @@
 import { eq, and, desc, sql } from 'drizzle-orm'
 import { createDb } from '../db/client'
 import { userSubscription, userInfo, keywordSubscription, feedItem } from '../db/schema'
-import { searchPodcastEpisodeFromItunes, buildFeedItemAndKeywordInputList, ItunesRateLimitError, initItunesProxy } from '../utils/itunes'
+import { searchPodcastEpisodeFromItunes, buildFeedItemAndKeywordInputList, ItunesRateLimitError, ItunesProxyError, initItunesProxy } from '../utils/itunes'
 import { searchSpotifyEpisodes } from '../utils/spotify'
 import { searchEpisodesFromPodcastIndex } from '../utils/podcast-index'
 import { logger } from '../utils/logger'
@@ -54,11 +54,12 @@ export async function handleSubscriptionUpdate(
   ctx: ExecutionContext
 ) {
   let rateLimited = false
+  let proxyFailed = false
   initItunesProxy(env)
   for (const msg of batch.messages) {
     const { userId, keyword, country, source, excludeFeedId, latestId } = msg.body as SubscriptionUpdateMessage
 
-    if (rateLimited && source === PODCAST_SOURCES.ITUNES) {
+    if (source === PODCAST_SOURCES.ITUNES && (rateLimited || proxyFailed)) {
       msg.ack()
       continue
     }
@@ -133,6 +134,10 @@ export async function handleSubscriptionUpdate(
       if (error instanceof ItunesRateLimitError) {
         rateLimited = true
         logger.warn('iTunes API rate limited, aborting remaining iTunes requests in this batch')
+      }
+      if (error instanceof ItunesProxyError) {
+        proxyFailed = true
+        logger.warn(`iTunes proxy failed, aborting remaining iTunes requests in this batch: ${error.cause}`)
       }
       logger.error(`Failed to process subscription: ${userId}/${keyword}`, error)
       if (msg.attempts < 3) {

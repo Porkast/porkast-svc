@@ -51,10 +51,27 @@ export class ItunesRateLimitError extends Error {
   }
 }
 
+export class ItunesProxyError extends Error {
+  cause: string
+  constructor(cause: string) {
+    super(`iTunes proxy error: ${cause}`)
+    this.name = 'ItunesProxyError'
+    this.cause = cause
+  }
+}
+
 async function checkItunesResponse(res: Response): Promise<void> {
   if (res.status === 429) {
     const retryAfter = parseInt(res.headers.get('Retry-After') || '60', 10)
     throw new ItunesRateLimitError(retryAfter)
+  }
+  if (res.status === 502) {
+    let cause = 'Unknown proxy error'
+    try {
+      const body = await res.json() as { error?: string }
+      if (body?.error) cause = body.error
+    } catch {}
+    throw new ItunesProxyError(cause)
   }
   if (!res.ok) {
     throw new Error(`iTunes API error: ${res.status} ${res.statusText}`)
