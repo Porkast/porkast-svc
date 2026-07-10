@@ -66,12 +66,9 @@ async function checkItunesResponse(res: Response): Promise<void> {
     throw new ItunesRateLimitError(retryAfter)
   }
   if (res.status === 502) {
-    let cause = 'Unknown proxy error'
-    try {
-      const body = await res.json() as { error?: string }
-      if (body?.error) cause = body.error
-    } catch {}
-    throw new ItunesProxyError(cause)
+    const body = await res.text()
+    logger.warn(`iTunes proxy 502 response body: ${body}`)
+    throw new ItunesProxyError(body)
   }
   if (!res.ok) {
     throw new Error(`iTunes API error: ${res.status} ${res.statusText}`)
