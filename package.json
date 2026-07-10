@@ -10,6 +10,7 @@
     "db:data-migrate": "DATABASE_URL=$(grep DATABASE_URL .env | cut -d= -f2-) npx tsx src/scripts/migrate-pg-to-d1.ts"
   },
   "dependencies": {
+    "@cloudflare/containers": "^0.3.7",
     "@hono/zod-validator": "^0.7.2",
     "drizzle-orm": "^0.43.1",
     "hogan.js": "^3.0.2",
