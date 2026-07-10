@@ -1,62 +1,61 @@
 import net from 'node:net'
 import tls from 'node:tls'
 
+interface StreamSocket {
+  readable: ReadableStream<Uint8Array>
+  writable: WritableStream<Uint8Array>
+}
+
 interface HttpHeaders {
   statusLine: string
   headers: Map<string, string>
   rest: Buffer
 }
 
-function readHttpHeaders(socket: net.Socket): Promise<HttpHeaders> {
+async function readHeadersFromStream(
+  reader: ReadableStreamDefaultReader<Uint8Array>
+): Promise<HttpHeaders> {
   const chunks: Buffer[] = []
-  return new Promise((resolve, reject) => {
-    const onData = (chunk: Buffer) => {
-      chunks.push(chunk)
-      const buf = Buffer.concat(chunks)
-      const idx = buf.indexOf('\r\n\r\n')
-      if (idx !== -1) {
-        socket.off('data', onData)
-        socket.off('error', onError)
-        const headerBlock = buf.toString('utf-8', 0, idx)
-        const lines = headerBlock.split('\r\n')
-        const statusLine = lines[0]
-        const headers = new Map<string, string>()
-        for (let i = 1; i < lines.length; i++) {
-          const colonIdx = lines[i].indexOf(':')
-          if (colonIdx > 0) {
-            headers.set(
-              lines[i].slice(0, colonIdx).trim().toLowerCase(),
-              lines[i].slice(colonIdx + 1).trim()
-            )
-          }
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) throw new Error('Connection closed before headers received')
+    chunks.push(Buffer.from(value!))
+    const buf = Buffer.concat(chunks)
+    const idx = buf.indexOf('\r\n\r\n')
+    if (idx !== -1) {
+      const headerBlock = buf.toString('utf-8', 0, idx)
+      const lines = headerBlock.split('\r\n')
+      const statusLine = lines[0]
+      const headers = new Map<string, string>()
+      for (let i = 1; i < lines.length; i++) {
+        const colonIdx = lines[i].indexOf(':')
+        if (colonIdx > 0) {
+          headers.set(
+            lines[i].slice(0, colonIdx).trim().toLowerCase(),
+            lines[i].slice(colonIdx + 1).trim()
+          )
         }
-        resolve({ statusLine, headers, rest: buf.subarray(idx + 4) })
       }
+      return { statusLine, headers, rest: buf.subarray(idx + 4) }
     }
-    const onError = (err: Error) => {
-      socket.off('data', onData)
-      reject(err)
-    }
-    socket.on('data', onData)
-    socket.on('error', onError)
-  })
+  }
 }
 
-function readRemaining(socket: net.Socket, initial: Buffer): Promise<Buffer> {
+async function readRemainingFromStream(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  initial: Buffer
+): Promise<Buffer> {
   const chunks: Buffer[] = [initial]
-  return new Promise((resolve, reject) => {
-    const cleanup = () => {
-      socket.off('data', onData)
-      socket.off('end', onEnd)
-      socket.off('error', onError)
-    }
-    const onData = (chunk: Buffer) => chunks.push(chunk)
-    const onEnd = () => { cleanup(); resolve(Buffer.concat(chunks)) }
-    const onError = (err: Error) => { cleanup(); reject(err) }
-    socket.on('data', onData)
-    socket.on('end', onEnd)
-    socket.on('error', onError)
-  })
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    if (value) chunks.push(Buffer.from(value))
+  }
+  return Buffer.concat(chunks)
+}
+
+function encode(data: string): Uint8Array {
+  return new TextEncoder().encode(data)
 }
 
 export async function proxyFetch(url: string, proxyUrl: string): Promise<Response> {
@@ -72,6 +71,8 @@ export async function proxyFetch(url: string, proxyUrl: string): Promise<Respons
   const targetPort = parseInt(targetUrl.port) || 443
 
   const socket = net.connect({ host: proxyHost, port: proxyPort })
+  const sock = socket as unknown as StreamSocket
+
   await new Promise<void>((resolve, reject) => {
     socket.once('connect', resolve)
     socket.once('error', reject)
@@ -82,9 +83,15 @@ export async function proxyFetch(url: string, proxyUrl: string): Promise<Respons
     connectReq += `Proxy-Authorization: Basic ${btoa(proxyAuth)}\r\n`
   }
   connectReq += '\r\n'
-  socket.write(connectReq)
 
-  const { statusLine: connectStatus } = await readHttpHeaders(socket)
+  const writer = sock.writable.getWriter()
+  await writer.write(encode(connectReq))
+  writer.releaseLock()
+
+  const reader = sock.readable.getReader()
+  const { statusLine: connectStatus } = await readHeadersFromStream(reader)
+  reader.releaseLock()
+
   const connectCode = parseInt(connectStatus.match(/^HTTP\/\d\.\d\s+(\d+)/)?.[1] || '0')
   if (connectCode !== 200) {
     socket.destroy()
@@ -95,21 +102,29 @@ export async function proxyFetch(url: string, proxyUrl: string): Promise<Respons
     socket,
     servername: targetHost,
   })
+  const tlsSock = tlsSocket as unknown as StreamSocket
+
   await new Promise<void>((resolve, reject) => {
     tlsSocket.once('secureConnect', resolve)
     tlsSocket.once('error', reject)
   })
 
-  tlsSocket.write(
-    `GET ${targetUrl.pathname}${targetUrl.search} HTTP/1.1\r\n` +
-      `Host: ${targetHost}\r\n` +
-      `Accept: */*\r\n` +
-      `Connection: close\r\n` +
-      `\r\n`
+  const tlsWriter = tlsSock.writable.getWriter()
+  await tlsWriter.write(
+    encode(
+      `GET ${targetUrl.pathname}${targetUrl.search} HTTP/1.1\r\n` +
+        `Host: ${targetHost}\r\n` +
+        `Accept: */*\r\n` +
+        `Connection: close\r\n` +
+        `\r\n`
+    )
   )
+  tlsWriter.releaseLock()
 
-  const { statusLine, headers: respHeaders, rest } = await readHttpHeaders(tlsSocket as unknown as net.Socket)
-  const body = await readRemaining(tlsSocket as unknown as net.Socket, rest)
+  const tlsReader = tlsSock.readable.getReader()
+  const { statusLine, headers: respHeaders, rest } =
+    await readHeadersFromStream(tlsReader)
+  const body = await readRemainingFromStream(tlsReader, rest)
 
   const statusMatch = statusLine.match(/^HTTP\/\d\.\d\s+(\d+)\s*(.*)/)
   const status = parseInt(statusMatch?.[1] || '502')
