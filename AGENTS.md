@@ -11,6 +11,7 @@ Porkast Service is a Cloudflare Workers backend service providing podcast subscr
 - **Web Framework**: Hono
 - **Database**: Cloudflare D1 (SQLite via Drizzle ORM)
 - **Async Processing**: Cloudflare Queues + Cron Triggers
+- **Containers**: Cloudflare Workers Containers (iTunes API proxy)
 - **Key Dependencies**:
   - Hono (HTTP framework)
   - Drizzle ORM (database ORM)
@@ -18,10 +19,13 @@ Porkast Service is a Cloudflare Workers backend service providing podcast subscr
   - rss-parser (RSS parsing)
   - podcast (podcast processing)
   - hogan.js (email templates)
+  - undici (container HTTP proxy agent)
 
 ## Project Structure
 
 ```txt
+containers/
+└── itunes-proxy/         # iTunes API proxy container (Bun + Docker)
 src/
 ├── index.ts              # Main application entry point
 ├── env.ts                # Environment type definitions
@@ -34,6 +38,8 @@ src/
 │   ├── subscribe/        # Subscription management
 │   ├── user/             # User management
 │   └── webhook/          # App Store webhook
+├── containers/           # Container class definitions
+│   └── itunes-proxy.ts   # ItunesProxyContainer (Durable Object Container)
 ├── crons/                # Cron job handlers
 ├── db/                   # Database schema & queries (Drizzle ORM)
 ├── email/                # Email services (Resend)
@@ -112,7 +118,7 @@ bun test
 
 ### Scheduled Tasks
 
-- Cloudflare Cron Trigger runs every hour
+- Cloudflare Cron Trigger runs every 3 hours
 - Handler is located in `src/crons/user_sub_update.ts`
 - Enqueues subscription update messages to `porkast-sub-update` Queue
 
@@ -120,7 +126,7 @@ bun test
 
 - Consumer handler: `src/queues/subscription.ts`
 - Processes subscription updates asynchronously
-- Fetches new episodes from iTunes/Spotify, stores in D1, notifies users via Telegram/Email
+- Fetches new episodes from iTunes/Spotify (via iTunes proxy), stores in D1, notifies users via Telegram/Email
 
 ## Environment Configuration
 
@@ -141,6 +147,8 @@ BOT_WEBHOOK_URL="your_webhook_url"
 RESEND_API_KEY="your_resend_api_key"
 SPOTIFY_CLIENT_ID="your_spotify_client_id"
 SPOTIFY_CLIENT_SECRET="your_spotify_client_secret"
+WEBSHARE_PROXY_URL="your_webshare_proxy_url"
+ITUNES_PROXY_BASE_URL="http://localhost:8080"
 ```
 
 ### Wrangler vars (configured in `wrangler.jsonc`)
@@ -162,6 +170,9 @@ bun run deploy
 # Set secrets for production
 npx wrangler secret put TELE_BOT_TOKEN
 npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put SPOTIFY_CLIENT_ID
+npx wrangler secret put SPOTIFY_CLIENT_SECRET
+npx wrangler secret put WEBSHARE_PROXY_URL
 
 # View logs (observability)
 npx wrangler tail
@@ -171,14 +182,16 @@ npx wrangler tail
 
 1. Run `bun run typecheck` to catch type errors
 2. Verify D1 migrations are up to date with `bun run db:generate`
+3. Container images are built automatically by `wrangler deploy` (see `containers` config in `wrangler.jsonc`)
 
 ## Infrastructure Bindings
 
 | Binding | Type | Purpose |
-|---|---|---|
+|---|---|---|---|
 | `DB` | D1 Database | Primary data store (Drizzle ORM) |
 | `TELEGRAM_STATE` | KV Namespace | Telegram bot conversation state |
 | `SUB_UPDATE_QUEUE` | Queue | Async subscription processing |
+| `ITUNES_PROXY` | Durable Object Container | iTunes API proxy (rate-limit avoidance) |
 
 ## Main Functional Modules
 
@@ -217,6 +230,15 @@ npx wrangler tail
 - Podcast search and subscription
 - Update notifications
 - Interactive commands and inline keyboards
+
+### 8. iTunes API Proxy (`containers/itunes-proxy/` + `src/containers/`)
+
+- Cloudflare Workers Container proxying `itunes.apple.com` search/lookup API
+- Runs a Bun HTTP server (`Dockerfile`) with `/search`, `/lookup`, `/health` endpoints
+- Routes through a Webshare proxy (`WEBSHARE_PROXY_URL`) to avoid rate limiting
+- Three operational modes: standalone container (prod), external URL (dev), or direct fetch (fallback)
+- Configured via `ITUNES_PROXY_BASE_URL` (standalone URL) or `ITUNES_PROXY` (DO binding)
+- Container class: `ItunesProxyContainer` in `src/containers/itunes-proxy.ts` (auto-sleeps after 30m idle)
 
 ## Database Relationships
 
