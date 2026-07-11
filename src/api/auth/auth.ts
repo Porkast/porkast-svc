@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomInt, randomUUID } from 'crypto';
 import { eq, and, gt, desc, sql, isNull } from 'drizzle-orm';
 import { createDb } from '../../db/client';
 import { verificationToken, userInfo as userInfoTable, appSession, userMembership } from '../../db/schema';
-import { sendLoginOtpEmail } from '../../email/resend';
+import { sendLoginOtpEmail, sendAdminNewUserEmail } from '../../email/resend';
 import { logger } from '../../utils/logger';
 import type { AuthUser, VerifyOtpResult } from './types';
 import type { Env } from '../../env';
@@ -129,6 +129,7 @@ export async function verifyEmailOtp(env: Env, email: string, code: string, nick
   if (!currentUser) {
     isNewUser = true;
     const newId = randomUUID();
+    const regDateStr = now.toISOString();
     await db.insert(userInfoTable).values({
       id: newId,
       email: normalizedEmail,
@@ -136,11 +137,25 @@ export async function verifyEmailOtp(env: Env, email: string, code: string, nick
       password: '',
       phone: '',
       avatar: '',
-      regDate: now.toISOString(),
-      updateDate: now.toISOString(),
+      regDate: regDateStr,
+      updateDate: regDateStr,
     });
     const newUser = await db.select().from(userInfoTable).where(eq(userInfoTable.id, newId)).limit(1);
     currentUser = newUser[0];
+
+    if (env.ADMIN_EMAIL && env.RESEND_API_KEY) {
+      try {
+        await sendAdminNewUserEmail(env.RESEND_API_KEY, env.ADMIN_EMAIL, env.PORKAST_WEB_BASE_URL, {
+          userId: newId,
+          email: normalizedEmail,
+          nickname: finalNickname,
+          regDate: regDateStr,
+          source: 'email',
+        });
+      } catch (err) {
+        logger.error(`Failed to send admin notification for new user: ${err}`);
+      }
+    }
   } else if ((!currentUser.nickname || currentUser.nickname.trim().length === 0) && finalNickname.length > 0) {
     await db
       .update(userInfoTable)
