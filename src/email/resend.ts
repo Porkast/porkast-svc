@@ -2,6 +2,7 @@ import { CreateEmailResponse, Resend } from "resend";
 import type { NotificationParams } from "../models/subscription";
 import { NOTIFICATION_TEMPLATE } from '../templates/notification';
 import { LOGIN_OTP_TEMPLATE } from '../templates/login-otp';
+import { ADMIN_NEW_USER_TEMPLATE } from '../templates/admin-new-user';
 
 var resendInstance: Resend
 
@@ -58,3 +59,38 @@ export async function sendLoginOtpEmail(apiKey: string, to: string, code: string
         html: htmlTempText
     });
 }
+
+export async function sendAdminNewUserEmail(
+    apiKey: string,
+    adminEmail: string,
+    porkastWebBaseUrl: string | undefined,
+    user: {
+        userId: string;
+        email?: string | null;
+        nickname?: string | null;
+        telegramId?: string | null;
+        regDate: string;
+        source: 'email' | 'telegram' | 'sync';
+    }
+): Promise<CreateEmailResponse> {
+    const resend = getResendInstance(apiKey);
+    const htmlTempText = renderTemplate(ADMIN_NEW_USER_TEMPLATE, {
+        userId: user.userId,
+        email: user.email || 'N/A',
+        nickname: user.nickname || 'N/A',
+        telegramId: user.telegramId || 'N/A',
+        regDate: user.regDate,
+        source: user.source,
+        adminUserLink: porkastWebBaseUrl
+            ? `<a href="${porkastWebBaseUrl}/admin/users/${user.userId}" class="btn" target="_blank">View User in Admin</a>`
+            : '',
+    });
+
+    return resend.emails.send({
+        from: 'Porkast <noreply@porkast.com>',
+        to: [adminEmail],
+        subject: `[Porkast Admin] New User: ${user.nickname || user.userId}`,
+        html: htmlTempText
+    });
+}
+

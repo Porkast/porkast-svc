@@ -19,6 +19,7 @@ export interface Env {
   WEBSHARE_PROXY_URL: string
   ITUNES_PROXY_BASE_URL: string
   ITUNES_PROXY: any
+  ADMIN_EMAIL?: string
 }
 
 export interface SubscriptionUpdateMessage {
