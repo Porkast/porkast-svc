@@ -244,7 +244,8 @@ async function notifyUser(
       .then((r) => Number(r[0]?.count || 0))
 
     if (totalCount > 0 && ksList.length > 0) {
-      const link = `${env.TELE_MINI_APP_LINK}/subscription/${user.telegramId}/${keyword}`
+      const miniAppLink = `${env.TELE_MINI_APP_LINK}/subscription/${user.telegramId}/${keyword}`
+      const webLink = `${env.PORKAST_WEB_BASE_URL}/subscription/${user.id}/${keyword}`
 
       if (user.telegramId) {
         const feedItems = ksList.map((k) => ({
@@ -264,7 +265,7 @@ async function notifyUser(
           ChannelTitle: k.channel_title,
           FeedLink: k.feed_link,
         } as import('../models/feeds').FeedItem))
-        sendSubscriptionNewUpdateMessage(env.TELE_BOT_TOKEN, env.TELE_MINI_APP_LINK, user.telegramId, keyword, totalCount, feedItems, link)
+        sendSubscriptionNewUpdateMessage(env.TELE_BOT_TOKEN, env.TELE_MINI_APP_LINK, user.telegramId, keyword, totalCount, feedItems, miniAppLink)
       }
 
       if (user.email) {
@@ -273,7 +274,7 @@ async function notifyUser(
           nickname: getNickname(user.email, user.nickname || ''),
           updateCount: totalCount,
           titleList: ksList.map((k) => k.title || ''),
-          link: link,
+          link: webLink,
           to: user.email,
           subject: "#" + keyword + " has new podcasts update",
         }
