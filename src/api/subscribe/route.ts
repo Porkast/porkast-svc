@@ -1,9 +1,9 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { KeywordSubscribeRequestData, KeywordSubscribeSchema } from "./types";
 import { getUserSubscriptionEpisodeList, getUserSubscriptionList, updateUserSubscription } from "./subscribe";
-import { disableUserKeywordSubscription, queryKeywordSubscriptionFeedItemList, queryUserKeywordSubscriptionDetail } from "../../db/subscription";
+import { disableUserKeywordSubscription, doSearchSubscription, queryKeywordSubscriptionFeedItemList, queryUserKeywordSubscriptionDetail } from "../../db/subscription";
 import { createDb } from "../../db/client";
 import { userSubscription } from '../../db/schema'
 import { setSpotifyCredentials } from '../../utils/spotify'
@@ -161,4 +161,39 @@ subscribeRouter.post('/trigger-update', async (c) => {
   }
 
   return c.json({ code: 0, msg: `Enqueued ${messages.length} subscription updates` })
+})
+
+// TEMPORARY: backfill feed_item rows missing for existing keyword_subscription rows. Remove after use.
+subscribeRouter.post('/backfill', async (c) => {
+  initItunesProxy(c.env)
+  const db = createDb(c.env.DB)
+
+  const rows = await db.all<{
+    keyword: string
+    country: string
+    source: string
+    exclude_feed_id: string
+    ks_cnt: number
+    exists_cnt: number
+  }>(sql`
+    SELECT ks.keyword, ks.country, ks.source, ks.exclude_feed_id,
+           COUNT(*) AS ks_cnt,
+           SUM(CASE WHEN fi.id IS NOT NULL THEN 1 ELSE 0 END) AS exists_cnt
+    FROM keyword_subscription ks
+    LEFT JOIN feed_item fi ON fi.id = ks.feed_item_id
+    GROUP BY ks.keyword, ks.country, ks.source, ks.exclude_feed_id
+    HAVING exists_cnt < ks_cnt
+  `)
+
+  const results: string[] = []
+  for (const row of rows) {
+    try {
+      await doSearchSubscription(db, row.keyword, row.country, row.source, row.exclude_feed_id)
+      results.push(`${row.keyword} (${row.country}/${row.source}): ${row.exists_cnt}/${row.ks_cnt} -> backfilled`)
+    } catch (error) {
+      results.push(`${row.keyword} (${row.country}/${row.source}): FAILED - ${String(error)}`)
+    }
+  }
+
+  return c.json({ code: 0, msg: 'backfill done', data: results })
 })

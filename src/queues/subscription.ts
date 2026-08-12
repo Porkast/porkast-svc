@@ -101,29 +101,29 @@ export async function handleSubscriptionUpdate(
 
       const model = await buildFeedItemAndKeywordInputList(keyword, country, excludeFeedId, source, feedItemList)
 
-      try {
-        const ksChunks = chunkArray(model.keywordSubscriptionList, 14)
-        for (const chunk of ksChunks) {
+      const ksChunks = chunkArray(model.keywordSubscriptionList, 14)
+      for (const chunk of ksChunks) {
+        try {
           await db.insert(keywordSubscription).values(chunk)
-        }
-      } catch (e: any) {
-        if (e?.message?.includes('UNIQUE constraint failed')) {
-          logger.warn('UNIQUE constraint violation for keyword_subscription, ignoring')
-        } else {
-          logger.error('Insert keyword subscription list failed', e)
+        } catch (e: any) {
+          if (e?.message?.includes('UNIQUE constraint failed')) {
+            logger.warn('UNIQUE constraint violation for keyword_subscription, ignoring')
+          } else {
+            logger.error('Insert keyword subscription list failed', e)
+          }
         }
       }
 
-      try {
-        const fiChunks = chunkArray(model.feedItemList, 4)
-        for (const chunk of fiChunks) {
+      const fiChunks = chunkArray(model.feedItemList, 4)
+      for (const chunk of fiChunks) {
+        try {
           await db.insert(feedItem).values(chunk)
-        }
-      } catch (e: any) {
-        if (e?.message?.includes('UNIQUE constraint failed')) {
-          logger.warn('UNIQUE constraint violation for feed_item, ignoring')
-        } else {
-          logger.error('Insert feed item list failed', e)
+        } catch (e: any) {
+          if (e?.message?.includes('UNIQUE constraint failed')) {
+            logger.warn('UNIQUE constraint violation for feed_item, ignoring')
+          } else {
+            logger.error('Insert feed item list failed', e)
+          }
         }
       }
 
