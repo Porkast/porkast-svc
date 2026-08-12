@@ -1,4 +1,4 @@
-import { eq, and, gt, desc, sql } from 'drizzle-orm'
+import { eq, and, gt, desc, sql, inArray } from 'drizzle-orm'
 
 import { SubscriptionDataDto } from "../models/subscription"
 import { FeedItem, FeedItemDto } from "../models/feeds"
@@ -12,6 +12,12 @@ import { decodeDatabaseText } from "../utils/text"
 import * as schema from './schema'
 
 type DbClient = ReturnType<typeof import('./client').createDb>
+
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size))
+  return chunks
+}
 
 export async function getAllUserSubscriptions(db: DbClient): Promise<SubscriptionDataDto[]> {
   const subscriptions = await db
@@ -265,23 +271,58 @@ export async function doSearchSubscription(
     })
   }
 
-  try {
-    await db.insert(schema.keywordSubscription).values(ksInsertValues)
-  } catch (e: any) {
-    if (e?.message?.includes('UNIQUE constraint failed')) {
-      logger.warn('UNIQUE constraint violation for keyword_subscription, ignoring')
-    } else {
-      throw e
+  const existingKsFeedItemIds = new Set(
+    (
+      await db
+        .select({ feedItemId: schema.keywordSubscription.feedItemId })
+        .from(schema.keywordSubscription)
+        .where(
+          and(
+            eq(schema.keywordSubscription.keyword, keyword),
+            eq(schema.keywordSubscription.country, country),
+            eq(schema.keywordSubscription.source, source),
+            eq(schema.keywordSubscription.excludeFeedId, excludeFeedId),
+          )
+        )
+    ).map(r => r.feedItemId)
+  )
+
+  const newKsValues = ksInsertValues.filter(v => !existingKsFeedItemIds.has(String(v.feedItemId)))
+
+  const existingFeedIds = new Set<string>()
+  for (const ids of chunkArray([...new Set(newKsValues.map(v => String(v.feedItemId)))], 90)) {
+    const rows = await db
+      .select({ id: schema.feedItem.id })
+      .from(schema.feedItem)
+      .where(inArray(schema.feedItem.id, ids))
+    rows.forEach(r => existingFeedIds.add(r.id))
+  }
+
+  const newFeedItemValues = feedItemInsertValues.filter(v => !existingFeedIds.has(String(v.id)))
+
+  const ksChunks = chunkArray(newKsValues, 14)
+  for (const chunk of ksChunks) {
+    try {
+      await db.insert(schema.keywordSubscription).values(chunk)
+    } catch (e: any) {
+      if (e?.message?.includes('UNIQUE constraint failed')) {
+        logger.warn('UNIQUE constraint violation for keyword_subscription, ignoring')
+      } else {
+        throw e
+      }
     }
   }
 
-  try {
-    await db.insert(schema.feedItem).values(feedItemInsertValues)
-  } catch (e: any) {
-    if (e?.message?.includes('UNIQUE constraint failed')) {
-      logger.warn('UNIQUE constraint violation for feed_item, ignoring')
-    } else {
-      throw e
+  const fiChunks = chunkArray(newFeedItemValues, 4)
+  for (const chunk of fiChunks) {
+    try {
+      await db.insert(schema.feedItem).values(chunk)
+    } catch (e: any) {
+      if (e?.message?.includes('UNIQUE constraint failed')) {
+        logger.warn('UNIQUE constraint violation for feed_item, ignoring')
+      } else {
+        throw e
+      }
     }
   }
 }
