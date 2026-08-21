@@ -33,9 +33,18 @@ export const queryUserListenLaterList = async (db: DbClient, userId: string, lim
       country: schema.feedItem.source,
       reg_date: schema.userListenLater.regDate,
       text_description: schema.feedItem.description,
+      is_listened: sql<boolean>`CASE WHEN ${schema.userListenHistory.id} IS NOT NULL THEN 1 ELSE 0 END`,
     })
     .from(schema.userListenLater)
     .innerJoin(schema.feedItem, eq(schema.feedItem.id, schema.userListenLater.itemId))
+    .leftJoin(
+      schema.userListenHistory,
+      and(
+        eq(schema.userListenHistory.itemId, schema.feedItem.id),
+        eq(schema.userListenHistory.userId, userId),
+        eq(schema.userListenHistory.status, 1),
+      )
+    )
     .where(
       and(
         eq(schema.userListenLater.userId, userId),

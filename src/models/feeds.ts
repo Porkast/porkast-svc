@@ -30,6 +30,7 @@ export type FeedItem = {
     Country: string
     TookTime: number;
     HasThumbnail: boolean;
+    IsListened?: boolean;
 }
 
 export type FeedItemDto = {
@@ -58,6 +59,7 @@ export type FeedItemDto = {
     count: number;
     exclude_feed_id: string
     country: string
+    is_listened?: number | boolean | null
 }
 
 export type FeedChannel = {

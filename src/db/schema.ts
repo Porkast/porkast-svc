@@ -177,3 +177,20 @@ export const userMembership = sqliteTable('user_membership', {
   originalTransactionIdUnique: uniqueIndex('user_membership_original_transaction_id_unique').on(table.originalTransactionId),
   userIdIdx: index('user_membership_user_id_idx').on(table.userId),
 }))
+
+export const userListenHistory = sqliteTable('user_listen_history', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  itemId: text('item_id').notNull(),
+  channelId: text('channel_id'),
+  duration: text('duration'),
+  position: integer('position').default(0),
+  status: integer('status').default(1),
+  regDate: text('reg_date'),
+  updateDate: text('update_date'),
+  source: text('source'),
+}, (table) => ({
+  userIdItemIdUnique: uniqueIndex('ulh_idx_uid_item').on(table.userId, table.itemId),
+  userIdIdx: index('ulh_idx_user_id').on(table.userId),
+  itemIdIdx: index('ulh_idx_item_id').on(table.itemId),
+}))

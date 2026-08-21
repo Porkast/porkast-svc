@@ -5,6 +5,7 @@ import { authRouter } from './api/auth/route'
 import { subscribeRouter } from './api/subscribe/route'
 import { playlistRoute } from './api/playlist/route'
 import { listenLaterRoute } from './api/listenlater/route'
+import { historyRoute } from './api/history/route'
 import { rssRoute } from './api/rss/route'
 import { membershipRouter } from './api/membership/route'
 import { webhookRouter } from './api/webhook/route'
@@ -43,6 +44,7 @@ app.route('/api/auth', authRouter)
 app.route('/api/subscribe', subscribeRouter)
 app.route('/api/playlist', playlistRoute)
 app.route('/api/listenlater', listenLaterRoute)
+app.route('/api/history', historyRoute)
 app.route('/api/rss', rssRoute)
 app.route('/api/membership', membershipRouter)
 app.route('/api/webhook', webhookRouter)

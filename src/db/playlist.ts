@@ -56,11 +56,13 @@ export async function queryUserPlaylistListByUserId(db: DbClient, userId: string
   }))
 }
 
-export async function queryPlaylistItemsByPlaylistId(db: DbClient, playlistId: string, offset: number = 0, limit: number = 10): Promise<UserPlaylistItemDto[]> {
+export async function queryPlaylistItemsByPlaylistId(db: DbClient, playlistId: string, offset: number = 0, limit: number = 10, userId?: string): Promise<UserPlaylistItemDto[]> {
   const queryResult = await db.all<UserPLaylistItemEntity>(sql`
-    SELECT fi.*, upi.reg_date, upi.playlist_id 
+    SELECT fi.*, upi.reg_date, upi.playlist_id,
+           CASE WHEN ulh.id IS NOT NULL THEN 1 ELSE 0 END AS is_listened
     FROM user_playlist_item upi
     JOIN feed_item fi ON upi.item_id = fi.id
+    LEFT JOIN user_listen_history ulh ON (ulh.item_id = fi.id AND ulh.user_id = ${userId || ''} AND ulh.status = 1)
     WHERE upi.playlist_id = ${playlistId} AND upi.status = 1
     ORDER BY upi.reg_date DESC
     LIMIT ${limit}
@@ -108,6 +110,7 @@ export async function queryPlaylistItemsByPlaylistId(db: DbClient, playlistId: s
     RegDate: formatDateTime(result.reg_date?.toString() || new Date().toString()),
     Status: result.status || 0,
     PlaylistId: result.playlist_id || '',
+    IsListened: Boolean(result.is_listened),
   }))
 }
 
