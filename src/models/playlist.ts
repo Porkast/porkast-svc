@@ -39,6 +39,7 @@ export type UserPLaylistItemEntity = {
     reg_date?: Date | string | null
     status?: number | 0
     playlist_id?: string | ''
+    is_listened?: number | boolean | null
 }
 
 export type UserPlaylistDto = {
@@ -89,4 +90,5 @@ export type UserPlaylistItemDto = {
     RegDate: string;
     Status: number;
     PlaylistId: string;
+    IsListened?: boolean;
 }

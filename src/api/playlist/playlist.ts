@@ -191,7 +191,7 @@ export async function getPlaylistPodcastList(db: DbClient, userId: string, playl
         telegramId: userInfoRow.telegramId || ''
     }
 
-    const playlist = await queryPlaylistItemsByPlaylistId(db, playlistId, offsetInt, limitInt)
+    const playlist = await queryPlaylistItemsByPlaylistId(db, playlistId, offsetInt, limitInt, userId)
 
     return {
         userInfo,

@@ -413,6 +413,7 @@ export async function queryKeywordSubscriptionFeedItemList(
       source: schema.keywordSubscription.source,
       exclude_feed_id: schema.keywordSubscription.excludeFeedId,
       country: schema.keywordSubscription.country,
+      is_listened: sql<boolean>`CASE WHEN ${schema.userListenHistory.id} IS NOT NULL THEN 1 ELSE 0 END`,
     })
     .from(schema.feedItem)
     .innerJoin(
@@ -426,6 +427,14 @@ export async function queryKeywordSubscriptionFeedItemList(
         eq(schema.userSubscription.country, schema.keywordSubscription.country),
         eq(schema.userSubscription.excludeFeedId, schema.keywordSubscription.excludeFeedId),
         eq(schema.userSubscription.source, schema.keywordSubscription.source),
+      )
+    )
+    .leftJoin(
+      schema.userListenHistory,
+      and(
+        eq(schema.userListenHistory.itemId, schema.feedItem.id),
+        eq(schema.userListenHistory.userId, userId),
+        eq(schema.userListenHistory.status, 1),
       )
     )
     .where(
@@ -487,6 +496,7 @@ export async function queryKeywordSubscriptionFeedItemList(
     Count: totalCount,
     TookTime: 0,
     HasThumbnail: true,
+    IsListened: Boolean(row.is_listened),
   })), totalCount]
 }
 
@@ -512,9 +522,11 @@ export async function queryUserAllKeywordSubscriptionFeedItemList(
       fi.*,
       matched_items.exclude_feed_id,
       matched_items.country,
-      COUNT(*) OVER() AS count
+      COUNT(*) OVER() AS count,
+      CASE WHEN ulh.id IS NOT NULL THEN 1 ELSE 0 END AS is_listened
     FROM feed_item fi
     INNER JOIN matched_items ON matched_items.id = fi.id AND matched_items.rn = 1
+    LEFT JOIN user_listen_history ulh ON (ulh.item_id = fi.id AND ulh.user_id = ${userId} AND ulh.status = 1)
     ORDER BY fi.pub_date DESC NULLS LAST, fi.id DESC
     LIMIT ${limit}
     OFFSET ${offset}
@@ -556,6 +568,7 @@ function mapSubscriptionFeedItem(queryResult: FeedItemDto, totalCount: number): 
     Count: totalCount,
     TookTime: 0,
     HasThumbnail: true,
+    IsListened: Boolean(queryResult.is_listened),
   }
 }
 

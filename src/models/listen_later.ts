@@ -31,4 +31,5 @@ export type UserListenLaterDto = {
     source: string;
     country: string;
     reg_date: string;
+    is_listened?: boolean;
 };
