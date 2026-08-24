@@ -4,13 +4,15 @@ import { createDb } from '../../db/client';
 import { verificationToken, userInfo as userInfoTable, appSession, userMembership } from '../../db/schema';
 import { sendLoginOtpEmail, sendAdminNewUserEmail } from '../../email/resend';
 import { logger } from '../../utils/logger';
+import { normalizeNickname, isValidNicknameFormat } from '../../utils/nickname';
+import { ensureUniqueNickname, generateFallbackNickname } from '../../db/user';
 import type { AuthUser, VerifyOtpResult } from './types';
 import type { Env } from '../../env';
+import type { DbClient } from '../../db/types';
 
 const OTP_EXPIRY_MINUTES = 10;
 const RESEND_COOLDOWN_SECONDS = 60;
 const SESSION_EXPIRY_DAYS = 30;
-const SESSION_PREFIX_LENGTH = 12;
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -123,8 +125,8 @@ export async function verifyEmailOtp(env: Env, email: string, code: string, nick
     .limit(1);
 
   let isNewUser = false;
-  const finalNickname = sanitizeNickname(nickname, normalizedEmail);
   let currentUser = userRecords[0];
+  const finalNickname = await pickUserNickname(db, nickname, normalizedEmail, currentUser?.id);
 
   if (!currentUser) {
     isNewUser = true;
@@ -277,13 +279,16 @@ function buildSessionToken(): string {
   return `${randomUUID().replace(/-/g, '')}.${randomBytes(24).toString('hex')}`;
 }
 
-function sanitizeNickname(nickname: string | undefined, email: string): string {
-  const trimmedNickname = nickname?.trim();
-  if (trimmedNickname && trimmedNickname.length > 0) {
-    return trimmedNickname.slice(0, 128);
+async function pickUserNickname(db: DbClient, nickname: string | undefined, email: string, excludeUserId?: string): Promise<string> {
+  let normalized = normalizeNickname(nickname ?? '') ?? ''
+  if (!normalized) {
+    normalized = normalizeNickname(email.split('@')[0]) ?? ''
   }
-
-  return email.split('@')[0].slice(0, 128) || `listener-${randomBytes(6).toString('hex').slice(0, SESSION_PREFIX_LENGTH)}`;
+  if (!normalized) {
+    normalized = generateFallbackNickname()
+  }
+  const unique = await ensureUniqueNickname(db, normalized, excludeUserId)
+  return unique || generateFallbackNickname()
 }
 
 function mapAuthUser(user: {

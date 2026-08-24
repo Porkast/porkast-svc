@@ -11,6 +11,10 @@ export const UserSyncSchema = z.object({
     avatar: z.string().optional(),
 })
 
+export const UserNicknameSchema = z.object({
+    nickname: z.string(),
+})
+
 export type UserSyncRequestData = z.infer<typeof UserSyncSchema>
 
 export type TelegramUser = {
