@@ -12,7 +12,7 @@ type DbClient = ReturnType<typeof import('./client').createDb>
 
 const RSS_BASE_URL = 'https://porkast.com/api/rss'
 
-const userRefOf = (user: any): string => user.nickname || user.id
+const userRefOf = (user: any): string => encodeURIComponent(user.nickname || user.id)
 
 export const generateListenLaterRSSXml = async (db: DbClient, userRef: string): Promise<string> => {
   const userInfo = await getUserRowByRef(db, userRef)
