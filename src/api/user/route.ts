@@ -1,9 +1,9 @@
 import { Hono } from "hono"
 import { zValidator } from '@hono/zod-validator';
-import { eq, and, sql } from 'drizzle-orm';
-import { UserSyncRequestData, UserSyncSchema } from "./types";
+import { eq, and, or, sql } from 'drizzle-orm';
+import { UserSyncRequestData, UserSyncSchema, UserNicknameSchema } from "./types";
 import { getUserInfoByTelegramId } from "../../db/user";
-import { syncUserData } from "./user";
+import { syncUserData, updateUserNickname } from "./user";
 import { getBearerToken, getSessionUser } from "../auth/auth";
 import { userInfo, userSubscription, userListenLater, userPlaylist } from "../../db/schema";
 import { createDb } from "../../db/client";
@@ -23,21 +23,27 @@ userRouter.get('/tele_id/:id', async (c) => {
     })
 })
 
-userRouter.get('/info/:userId', async (c) => {
-    const userId = c.req.param('userId')
+userRouter.get('/info/:userRef', async (c) => {
+    const userRef = c.req.param('userRef')
 
-    if (!userId) {
+    if (!userRef) {
         return c.json({
             code: 1,
-            msg: 'User ID is required'
+            msg: 'User identifier is required'
         })
     }
 
     const db = createDb(c.env.DB)
+    const ref = userRef.trim().toLowerCase()
     const queryData = await db
         .select()
         .from(userInfo)
-        .where(eq(userInfo.id, userId))
+        .where(
+            or(
+                eq(userInfo.id, ref),
+                eq(userInfo.nickname, ref)
+            )
+        )
         .limit(1)
 
     if (queryData.length > 0) {
@@ -52,6 +58,37 @@ userRouter.get('/info/:userId', async (c) => {
         code: 1,
         msg: 'User not found'
     })
+})
+
+userRouter.patch('/me/nickname', zValidator('json', UserNicknameSchema), async (c) => {
+    const token = getBearerToken(c.req.header('Authorization'))
+    if (!token) {
+        return c.json({ code: 1, msg: 'Unauthorized' }, 401)
+    }
+
+    const user = await getSessionUser(c.env, token)
+    if (!user) {
+        return c.json({ code: 1, msg: 'Invalid session' }, 401)
+    }
+
+    const body: { nickname: string } = await c.req.json()
+    try {
+        const db = createDb(c.env.DB)
+        const result = await updateUserNickname(db, user.userId, body.nickname)
+        if (result.code !== 0) {
+            return c.json(result)
+        }
+        return c.json({
+            code: 0,
+            msg: 'Success',
+            data: { nickname: result.nickname }
+        })
+    } catch (error) {
+        return c.json({
+            code: 1,
+            msg: error instanceof Error ? error.message : String(error)
+        })
+    }
 })
 
 userRouter.get('/:userId/stats', async (c) => {
@@ -100,15 +137,15 @@ userRouter.post('/sync', zValidator('json', UserSyncSchema), async (c) => {
     const request: UserSyncRequestData = await c.req.json();
     try {
         const db = createDb(c.env.DB)
-        await syncUserData(db, request)
+        const result = await syncUserData(db, request)
+        if (result.code !== 0) {
+            return c.json(result)
+        }
+        return c.json({ code: 0, msg: 'Success' })
     } catch (error) {
         return c.json({
             code: 1,
-            msg: error
+            msg: error instanceof Error ? error.message : String(error)
         })
     }
-    return c.json({
-        code: 0,
-        msg: 'Success'
-    })
 })

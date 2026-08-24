@@ -74,7 +74,9 @@ export const userInfo = sqliteTable('user_info', {
   updateDate: text('update_date'),
   avatar: text('avatar'),
   telegramId: text('telegram_id'),
-})
+}, (table) => ({
+  nicknameUnique: uniqueIndex('user_info_nickname_unique').on(table.nickname),
+}))
 
 export const verificationToken = sqliteTable('verification_token', {
   id: text('id').primaryKey(),
