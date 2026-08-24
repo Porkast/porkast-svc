@@ -1,8 +1,16 @@
 export const NICKNAME_MAX_LENGTH = 32
-const NICKNAME_PATTERN = /^[A-Za-z0-9_-]*$/
+
+// Disallowed: whitespace, ASCII control chars, URL-reserved characters.
+// Unicode letters (e.g. Chinese) ARE allowed — links are percent-encoded.
+const INVALID_NICKNAME_CHAR = /[\s\u0000-\u001F\u007F%\/?#&=+]/
+const NICKNAME_PATTERN = /^[^\s\u0000-\u001F\u007F%\/?#&=+]{1,32}$/u
 
 export function stripInvalidNicknameChars(input: string): string {
-  return input.toLowerCase().replace(/[^a-zA-Z0-9_-]/g, '')
+  return input
+    .toLowerCase()
+    .split('')
+    .filter((char) => !INVALID_NICKNAME_CHAR.test(char))
+    .join('')
 }
 
 export function isValidNicknameFormat(input: string): boolean {

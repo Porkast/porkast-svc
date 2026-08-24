@@ -19,7 +19,7 @@ export async function updateUserNickname(db: DbClient, userId: string, rawNickna
     }
     const trimmed = rawNickname.trim().toLowerCase()
     if (!isValidNicknameFormat(trimmed)) {
-        return { code: 1, msg: 'Nickname may only contain A-Z a-z 0-9 _ - and up to 32 characters' }
+        return { code: 1, msg: 'Nickname may not contain spaces or URL-reserved characters, and is limited to 32 characters' }
     }
     const taken = await db
         .select({ id: userInfo.id })
@@ -63,7 +63,7 @@ export async function syncUserData(db: DbClient, userData: UserSyncRequestData):
         if (userData.nickname !== undefined && userData.nickname !== '') {
             const trimmed = userData.nickname.trim().toLowerCase()
             if (!isValidNicknameFormat(trimmed)) {
-                return { code: 1, msg: 'Nickname may only contain A-Z a-z 0-9 _ - and up to 32 characters' }
+                return { code: 1, msg: 'Nickname may not contain spaces or URL-reserved characters, and is limited to 32 characters' }
             }
             const taken = await db
                 .select({ id: userInfo.id })
