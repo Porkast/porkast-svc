@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, mock } from 'bun:test'
-import { buildCanonicalPath, resolveShortLink } from './short_link'
+import { buildCanonicalPath, resolveShortLink, resolveUserRef } from './short_link'
 import type { ShareCodeEntity } from '../../db/share_code'
 
 const resolveShareCodeMock = mock<() => Promise<ShareCodeEntity | null>>(async () => null)
 const queryPlaylistByPlaylistIdMock = mock()
 const queryUserKeywordSubscriptionDetailMock = mock()
+const getUserRowByRefMock = mock()
 
 mock.module('../../db/share_code', () => ({
     resolveShareCode: resolveShareCodeMock,
@@ -17,6 +18,10 @@ mock.module('../../db/playlist', () => ({
 
 mock.module('../../db/subscription', () => ({
     queryUserKeywordSubscriptionDetail: queryUserKeywordSubscriptionDetailMock,
+}))
+
+mock.module('../../db/user', () => ({
+    getUserRowByRef: getUserRowByRefMock,
 }))
 
 const fakeDb = {} as any
@@ -35,20 +40,52 @@ function makeShare(overrides: Partial<ShareCodeEntity> = {}): ShareCodeEntity {
 }
 
 describe('buildCanonicalPath()', () => {
-    it('builds listenlater path with userId', () => {
-        expect(buildCanonicalPath(makeShare())).toBe(`/api/rss/listenlater/user-1234`)
+    it('builds listenlater path with userRef', () => {
+        expect(buildCanonicalPath(makeShare(), 'janedoe')).toBe(`/api/rss/listenlater/janedoe`)
     })
 
-    it('builds playlist path with feedRef and userId', () => {
-        expect(buildCanonicalPath(makeShare({ feedType: 'playlist', feedRef: 'pl-9' }))).toBe(
-            `/api/rss/playlist/pl-9/user-1234`,
+    it('builds playlist path with feedRef and userRef', () => {
+        expect(buildCanonicalPath(makeShare({ feedType: 'playlist', feedRef: 'pl-9' }), 'janedoe')).toBe(
+            `/api/rss/playlist/pl-9/janedoe`,
         )
     })
 
     it('builds subscription path with encoded keyword', () => {
-        expect(buildCanonicalPath(makeShare({ feedType: 'subscription', feedRef: 'AI 播客' }))).toBe(
-            `/api/rss/subscription/user-1234/AI%20%E6%92%AD%E5%AE%A2`,
+        expect(buildCanonicalPath(makeShare({ feedType: 'subscription', feedRef: 'AI 播客' }), 'janedoe')).toBe(
+            `/api/rss/subscription/janedoe/AI%20%E6%92%AD%E5%AE%A2`,
         )
+    })
+
+    it('percent-encodes unicode userRef', () => {
+        expect(buildCanonicalPath(makeShare(), '吃播爱好者')).toBe(
+            `/api/rss/listenlater/%E5%90%83%E6%92%AD%E7%88%B1%E5%A5%BD%E8%80%85`,
+        )
+    })
+})
+
+describe('resolveUserRef()', () => {
+    beforeEach(() => {
+        getUserRowByRefMock.mockReset()
+    })
+
+    it('returns nickname when it is a valid URL-safe identifier', async () => {
+        getUserRowByRefMock.mockResolvedValue({ id: 'user-1234', nickname: 'janedoe' })
+        expect(await resolveUserRef(fakeDb, 'user-1234')).toBe('janedoe')
+    })
+
+    it('returns nickname when it contains unicode characters', async () => {
+        getUserRowByRefMock.mockResolvedValue({ id: 'user-1234', nickname: '吃播爱好者' })
+        expect(await resolveUserRef(fakeDb, 'user-1234')).toBe('吃播爱好者')
+    })
+
+    it('falls back to userId when nickname is empty', async () => {
+        getUserRowByRefMock.mockResolvedValue({ id: 'user-1234', nickname: '' })
+        expect(await resolveUserRef(fakeDb, 'user-1234')).toBe('user-1234')
+    })
+
+    it('falls back to userId when nickname contains reserved characters', async () => {
+        getUserRowByRefMock.mockResolvedValue({ id: 'user-1234', nickname: 'john doe' })
+        expect(await resolveUserRef(fakeDb, 'user-1234')).toBe('user-1234')
     })
 })
 
@@ -57,12 +94,14 @@ describe('resolveShortLink()', () => {
         resolveShareCodeMock.mockReset()
         queryPlaylistByPlaylistIdMock.mockReset()
         queryUserKeywordSubscriptionDetailMock.mockReset()
+        getUserRowByRefMock.mockReset()
+        getUserRowByRefMock.mockResolvedValue({ id: 'user-1234', nickname: 'janedoe' })
     })
 
-    it('returns path for active listenlater share', async () => {
+    it('returns path with nickname for active listenlater share', async () => {
         resolveShareCodeMock.mockResolvedValue(makeShare())
         const resolved = await resolveShortLink(fakeDb, 'abc12345')
-        expect(resolved).toEqual({ path: '/api/rss/listenlater/user-1234' })
+        expect(resolved).toEqual({ path: '/api/rss/listenlater/janedoe' })
     })
 
     it('returns null when code is missing or revoked', async () => {
@@ -76,11 +115,11 @@ describe('resolveShortLink()', () => {
         expect(await resolveShortLink(fakeDb, 'abc12345')).toBeNull()
     })
 
-    it('returns path when playlist is active', async () => {
+    it('returns path with nickname when playlist is active', async () => {
         resolveShareCodeMock.mockResolvedValue(makeShare({ feedType: 'playlist', feedRef: 'pl-9' }))
         queryPlaylistByPlaylistIdMock.mockResolvedValue({ Status: 1 })
         expect(await resolveShortLink(fakeDb, 'abc12345')).toEqual({
-            path: `/api/rss/playlist/pl-9/user-1234`,
+            path: `/api/rss/playlist/pl-9/janedoe`,
         })
     })
 
