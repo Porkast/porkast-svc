@@ -5,6 +5,7 @@ import { KeywordSubscribeRequestData, KeywordSubscribeSchema } from "./types";
 import { getUserSubscriptionEpisodeList, getUserSubscriptionList, updateUserSubscription } from "./subscribe";
 import { disableUserKeywordSubscription, queryKeywordSubscriptionFeedItemList, queryUserKeywordSubscriptionDetail } from "../../db/subscription";
 import { createDb } from "../../db/client";
+import { revokeShareCodesForFeed } from "../../db/share_code";
 import { userSubscription } from '../../db/schema'
 import { setSpotifyCredentials } from '../../utils/spotify'
 import { setPodcastIndexCredentials } from '../../utils/podcast-index'
@@ -131,6 +132,12 @@ subscribeRouter.delete('/:userId/:keyword', async (c) => {
         console.error('Error disabling user keyword subscription:', error);
         resp.code = 1;
         resp.message = 'Failed to disable subscription: ' + String(error);
+    }
+
+    try {
+        await revokeShareCodesForFeed(db, 'subscription', keyword, userId)
+    } catch (error) {
+        console.error('Error revoking share codes for subscription:', error);
     }
 
     return c.json(resp);

@@ -196,3 +196,16 @@ export const userListenHistory = sqliteTable('user_listen_history', {
   userIdIdx: index('ulh_idx_user_id').on(table.userId),
   itemIdIdx: index('ulh_idx_item_id').on(table.itemId),
 }))
+
+export const shareCode = sqliteTable('share_code', {
+  id: text('id').primaryKey(),
+  code: text('code').notNull(),
+  userId: text('user_id').notNull(),
+  feedType: text('feed_type').notNull(),
+  feedRef: text('feed_ref').notNull().default(''),
+  createdAt: text('created_at').notNull(),
+  revokedAt: text('revoked_at'),
+}, (table) => ({
+  codeUnique: uniqueIndex('share_code_code_unique').on(table.code),
+  userIdFeedUnique: uniqueIndex('share_code_user_feed_unique').on(table.userId, table.feedType, table.feedRef),
+}))
