@@ -2,6 +2,8 @@ import { getOrCreateShareCode, resolveShareCode } from '../../db/share_code'
 import type { ShareCodeEntity, ShareCodeFeedType } from '../../db/share_code'
 import { queryPlaylistByPlaylistId } from '../../db/playlist'
 import { queryUserKeywordSubscriptionDetail } from '../../db/subscription'
+import { getUserRowByRef } from '../../db/user'
+import { isValidNicknameFormat } from '../../utils/nickname'
 
 type DbClient = ReturnType<typeof import('../../db/client').createDb>
 
@@ -18,15 +20,21 @@ export async function createShareCodeForFeed(
   return getOrCreateShareCode(db, userId, feedType, feedRef)
 }
 
-export function buildCanonicalPath(share: ShareCodeEntity): string {
+export function buildCanonicalPath(share: ShareCodeEntity, userRef: string): string {
   switch (share.feedType) {
     case 'listenlater':
-      return `/api/rss/listenlater/${encodeURIComponent(share.userId)}`
+      return `/api/rss/listenlater/${encodeURIComponent(userRef)}`
     case 'playlist':
-      return `/api/rss/playlist/${encodeURIComponent(share.feedRef)}/${encodeURIComponent(share.userId)}`
+      return `/api/rss/playlist/${encodeURIComponent(share.feedRef)}/${encodeURIComponent(userRef)}`
     case 'subscription':
-      return `/api/rss/subscription/${encodeURIComponent(share.userId)}/${encodeURIComponent(share.feedRef)}`
+      return `/api/rss/subscription/${encodeURIComponent(userRef)}/${encodeURIComponent(share.feedRef)}`
   }
+}
+
+export async function resolveUserRef(db: DbClient, userId: string): Promise<string> {
+  const user = await getUserRowByRef(db, userId)
+  const nickname = user?.nickname || ''
+  return isValidNicknameFormat(nickname) ? nickname : userId
 }
 
 export async function resolveShortLink(db: DbClient, code: string): Promise<ResolvedShortLink | null> {
@@ -53,5 +61,7 @@ export async function resolveShortLink(db: DbClient, code: string): Promise<Reso
     }
   }
 
-  return { path: buildCanonicalPath(share) }
+  const userRef = await resolveUserRef(db, share.userId)
+
+  return { path: buildCanonicalPath(share, userRef) }
 }
