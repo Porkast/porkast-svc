@@ -10,6 +10,8 @@ import { rssRoute } from './api/rss/route'
 import { membershipRouter } from './api/membership/route'
 import { webhookRouter } from './api/webhook/route'
 import { dbMiddleware } from './db/middleware'
+import { createDb } from './db/client'
+import { resolveShortLink } from './api/rss/short_link'
 import { handleSubscriptionUpdate } from './queues/subscription'
 import { handleCron } from './crons/user_sub_update'
 import teleBot from './telegram/bot.hook'
@@ -53,6 +55,20 @@ app.route('/telegram', teleBot)
 
 app.get('/', async (c) => {
   return c.text('Porkast Service running on Cloudflare Workers')
+})
+
+app.get('/r/:code', async (c) => {
+  const code = c.req.param('code')
+  if (!code) {
+    return c.text('Not found', 404)
+  }
+  const db = createDb(c.env.DB)
+  const resolved = await resolveShortLink(db, code)
+  if (!resolved) {
+    return c.text('Not found', 404)
+  }
+  const origin = new URL(c.req.url).origin
+  return c.redirect(`${origin}${resolved.path}`, 301)
 })
 
 export default {
