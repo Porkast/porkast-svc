@@ -5,6 +5,15 @@ export const SyncMembershipSchema = z.object({
   environment: z.enum(["Sandbox", "Production"]).default("Production"),
 })
 
+export const CreateCheckoutSchema = z.object({
+  plan: z.enum(["pro", "unlimited"]),
+})
+
+export type MembershipPlan = z.infer<typeof CreateCheckoutSchema>["plan"]
+
+export const DODO_PROVIDER = "dodo"
+export const APPSTORE_PROVIDER = "appstore"
+
 export const TIER_KEYWORDS_LIMIT: Record<string, number | null> = {
   free: 5,
   pro: 20,

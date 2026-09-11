@@ -66,9 +66,11 @@
 	"vars": {
 		"PORKAST_WEB_BASE_URL": "https://porkast.com",
 		"TELE_MINI_APP_LINK": "https://porkast-tele-mini-app.guoshaotech.workers.dev",
-		"PODCAST_INDEX_API_KEY": "",
-		"PODCAST_INDEX_API_SECRET": "",
-		"NODE_ENV": "production"
+		"NODE_ENV": "production",
+		// Temporary test-mode smoke test: switch to live_mode with live product IDs before launch
+		"DODO_ENVIRONMENT": "test_mode",
+		"DODO_PRODUCT_PRO": "pdt_0NnMeBKQBFESFhXKMiXuB",
+		"DODO_PRODUCT_UNLIMITED": "pdt_0NnMeBP4nIopwDBD4dJyS"
 	},
 	"observability": {
 		"logs": {

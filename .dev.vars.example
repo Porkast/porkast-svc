@@ -4,7 +4,7 @@ BOT_WEBHOOK_URL=https://your-ngrok-or-github-codespace-url/telegram/bot-webhook
 RESEND_API_KEY=your_resend_api_key
 SPOTIFY_CLIENT_ID=your_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
-PORKAST_WEB_BASE_URL=http://localhost:8787
+PORKAST_WEB_BASE_URL=http://localhost:5173
 TELE_MINI_APP_LINK=https://domain.com
 DEMO_EMAILS=test@porkast.com
 DEMO_CODE=000000
@@ -13,3 +13,11 @@ PODCAST_INDEX_API_KEY=your_podcast_index_api_key
 PODCAST_INDEX_API_SECRET=your_podcast_index_api_secret
 WEBSHARE_PROXY_URL=your_webshare_proxy_url
 ITUNES_PROXY_BASE_URL=http://localhost:8080
+
+# Dodo Payments (test mode for local development)
+# Create the two products in the Dodo test-mode dashboard and copy their IDs here.
+DODO_PAYMENTS_API_KEY=your_dodo_test_mode_api_key
+DODO_PAYMENTS_WEBHOOK_KEY=your_dodo_test_mode_webhook_signing_key
+DODO_ENVIRONMENT=test_mode
+DODO_PRODUCT_PRO=your_test_mode_pro_product_id
+DODO_PRODUCT_UNLIMITED=your_test_mode_unlimited_product_id
