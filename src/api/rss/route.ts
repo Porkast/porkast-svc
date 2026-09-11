@@ -1,10 +1,40 @@
+import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
+import { z } from "zod";
 import { generateListenLaterRSSXml, generatePlaylistRSSXml, generateSubscriptionRSS } from "../../db/shared";
+import { createShareCodeForFeed } from "./short_link";
 import { logger } from "../../utils/logger";
 import type { Env } from '../../env'
 import { createDb } from '../../db/client'
 
 export const rssRoute = new Hono<{ Bindings: Env }>()
+
+const CreateShareCodeSchema = z.object({
+    userId: z.string().min(1),
+    feedType: z.enum(['listenlater', 'subscription', 'playlist']),
+    feedRef: z.string().default(''),
+})
+
+rssRoute.post('/share-code', zValidator('json', CreateShareCodeSchema), async (c) => {
+    const body = c.req.valid('json')
+    const db = createDb(c.env.DB)
+    try {
+        const share = await createShareCodeForFeed(db, body.userId, body.feedType, body.feedRef || '')
+        return c.json({
+            code: 0,
+            msg: 'Success',
+            data: {
+                code: share.code,
+            },
+        })
+    } catch (error) {
+        logger.error(`create share code with userId ${body.userId} feedType ${body.feedType} feedRef ${body.feedRef} error : `, error)
+        return c.json({
+            code: 1,
+            msg: 'Ops! Something went wrong',
+        })
+    }
+})
 
 rssRoute.get('/listenlater/:userId', async (c) => {
     const db = createDb(c.env.DB)

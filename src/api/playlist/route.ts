@@ -4,6 +4,7 @@ import { AddPodcastToPlaylistRequestData, AddPodcastToPlaylistSchema, CreatePlay
 import { addPodcastToPlaylist, createPlaylist, deletePlaylist, getPlaylistById, getPlaylistPodcastList, getUserPlaylistList } from "./playlist";
 import { DEFAULT_PODCAST_SOURCE } from "../../models/types";
 import { createDb } from "../../db/client";
+import { revokeShareCodesForFeed } from "../../db/share_code";
 import type { Env } from "../../env";
 
 export const playlistRoute = new Hono<{ Bindings: Env }>()
@@ -112,6 +113,7 @@ playlistRoute.delete('/:playlistId', async (c) => {
     try {
         const db = createDb(c.env.DB)
         await deletePlaylist(db, playlistId)
+        await revokeShareCodesForFeed(db, 'playlist', playlistId)
     } catch (error: Error | any) {
         return c.json({
             code: 1,
