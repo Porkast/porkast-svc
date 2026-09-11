@@ -1,5 +1,6 @@
 import { logger } from './logger';
 import { FeedItem, FeedChannel } from '../models/feeds';
+import { CONTENT_POLICY_ERROR, isBlockedContent } from './content-filter';
 
 let spotifyClientIdOverride: string | null = null
 let spotifyClientSecretOverride: string | null = null
@@ -278,6 +279,13 @@ export async function searchSpotifyEpisodes(query: string, market: string = 'US'
             if (!episode) {
                 continue
             }
+            if (isBlockedContent({
+                title: episode.name,
+                description: episode.description || episode.html_description,
+                explicit: episode.explicit
+            })) {
+                continue
+            }
              // Get the best quality image (largest)
             const imageUrl = episode.images.length > 0
                 ? episode.images.sort((a, b) => b.width - a.width)[0].url
@@ -377,6 +385,15 @@ export async function getSpotifyEpisodeDetail(episodeId: string, market: string 
         if (!episodeDetail.id || !episodeDetail.show) {
             logger.error('Spotify episode detail response missing required data', episodeDetail);
             throw new SpotifyEpisodeDetailError('Invalid response from Spotify: missing episode or show data');
+        }
+
+        if (isBlockedContent({
+            title: episodeDetail.name,
+            channelTitle: episodeDetail.show.name,
+            description: episodeDetail.description || episodeDetail.html_description,
+            explicit: episodeDetail.explicit
+        })) {
+            throw new Error(CONTENT_POLICY_ERROR)
         }
 
         // Get the best quality episode image

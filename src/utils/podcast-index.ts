@@ -1,6 +1,7 @@
 import { FeedItem } from '../models/feeds'
 import { PodcastIndexFeed, PodcastIndexEpisode, PodcastIndexSearchResponse, PodcastIndexEpisodesResponse } from '../models/podcast-index'
 import { logger } from './logger'
+import { isBlockedContent } from './content-filter'
 
 let podcastIndexApiKeyOverride: string | null = null
 let podcastIndexApiSecretOverride: string | null = null
@@ -187,8 +188,26 @@ export async function searchEpisodesFromPodcastIndex(
       continue
     }
 
+    if (isBlockedContent({
+      title: feed.title,
+      description: feed.description,
+      categories: Object.values(feed.categories || {}),
+      explicit: feed.explicit
+    })) {
+      logger.debug(`Skipping prohibited feed from Podcast Index: ${feed.title}`)
+      continue
+    }
+
     const episodes = result.value
     for (const episode of episodes) {
+      if (isBlockedContent({
+        title: episode.title,
+        description: episode.description,
+        channelTitle: feed.title,
+        explicit: episode.explicit
+      })) {
+        continue
+      }
       const item = await buildEpisodeFeedItem(episode, feed, country)
       allFeedItems.push(item)
     }

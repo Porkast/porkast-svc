@@ -4,10 +4,32 @@ import { z } from "zod";
 import { generateListenLaterRSSXml, generatePlaylistRSSXml, generateSubscriptionRSS } from "../../db/shared";
 import { createShareCodeForFeed } from "./short_link";
 import { logger } from "../../utils/logger";
+import { isBlockedRssUrl } from "../../utils/content-filter";
 import type { Env } from '../../env'
 import { createDb } from '../../db/client'
 
 export const rssRoute = new Hono<{ Bindings: Env }>()
+
+function isPrivateHost(hostname: string): boolean {
+    const host = hostname.toLowerCase()
+    if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) {
+        return true
+    }
+    const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+    if (ipv4) {
+        const a = Number(ipv4[1])
+        const b = Number(ipv4[2])
+        if (a === 0 || a === 10 || a === 127) return true
+        if (a === 169 && b === 254) return true
+        if (a === 172 && b >= 16 && b <= 31) return true
+        if (a === 192 && b === 168) return true
+        return false
+    }
+    if (host === '::1' || host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')) {
+        return true
+    }
+    return false
+}
 
 const CreateShareCodeSchema = z.object({
     userId: z.string().min(1),
@@ -130,6 +152,38 @@ rssRoute.get('/proxy', async (c) => {
 
     try {
         const decodedUrl = decodeURIComponent(url)
+
+        let target: URL
+        try {
+            target = new URL(decodedUrl)
+        } catch {
+            return c.json({
+                code: 1,
+                msg: 'Invalid URL'
+            }, 400)
+        }
+
+        if (target.protocol !== 'http:' && target.protocol !== 'https:') {
+            return c.json({
+                code: 1,
+                msg: 'Only http and https URLs are supported'
+            }, 400)
+        }
+
+        if (isPrivateHost(target.hostname)) {
+            return c.json({
+                code: 1,
+                msg: 'This URL is not allowed'
+            }, 400)
+        }
+
+        if (isBlockedRssUrl(decodedUrl)) {
+            return c.json({
+                code: 1,
+                msg: 'This content is not allowed by our Content Policy'
+            }, 403)
+        }
+
         const response = await fetch(decodedUrl)
 
         if (!response.ok) {

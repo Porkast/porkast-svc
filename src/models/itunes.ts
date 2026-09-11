@@ -16,6 +16,10 @@ export type iTunesResponse = {
         collectionName: string;
         feedUrl: string;
         episodeGuid: string;
+        trackExplicitness?: string;
+        collectionExplicitness?: string;
+        contentAdvisoryRating?: string;
+        genres?: Array<{ name: string; id?: string } | string>;
     }>;
 }
 
