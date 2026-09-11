@@ -173,6 +173,8 @@ export const userMembership = sqliteTable('user_membership', {
   willRenew: integer('will_renew', { mode: 'boolean' }).default(true),
   isInBillingRetry: integer('is_in_billing_retry', { mode: 'boolean' }).default(false),
   environment: text('environment').default('Production'),
+  provider: text('provider').notNull().default('appstore'),
+  providerCustomerId: text('provider_customer_id'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 }, (table) => ({

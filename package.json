@@ -2,6 +2,7 @@
   "name": "porkast-svc",
   "scripts": {
     "dev": "wrangler dev",
+    "dev:local": "wrangler dev --port 8787 --local --enable-containers=false",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
@@ -12,6 +13,7 @@
   "dependencies": {
     "@cloudflare/containers": "^0.3.7",
     "@hono/zod-validator": "^0.7.2",
+    "dodopayments": "^2.50.0",
     "drizzle-orm": "^0.43.1",
     "hogan.js": "^3.0.2",
     "hono": "^4.8.9",

@@ -20,6 +20,11 @@ export interface Env {
   ITUNES_PROXY_BASE_URL: string
   ITUNES_PROXY: any
   ADMIN_EMAIL?: string
+  DODO_PAYMENTS_API_KEY: string
+  DODO_PAYMENTS_WEBHOOK_KEY: string
+  DODO_ENVIRONMENT?: string
+  DODO_PRODUCT_PRO: string
+  DODO_PRODUCT_UNLIMITED: string
 }
 
 export interface SubscriptionUpdateMessage {
