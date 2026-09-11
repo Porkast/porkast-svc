@@ -7,6 +7,7 @@ import { UserInfo } from "../api/user/types"
 import { UserListenLaterDto } from "../models/listen_later"
 import { queryKeywordSubscriptionFeedItemList, queryUserKeywordSubscriptionDetail } from "./subscription"
 import { getUserRowByRef } from './user'
+import { isBlockedContent, isExplicitFlag } from '../utils/content-filter'
 
 type DbClient = ReturnType<typeof import('./client').createDb>
 
@@ -54,7 +55,13 @@ export const generateListenLaterRSSXml = async (db: DbClient, userRef: string): 
     itunesImage: 'https://porkast.com/porkast-text-logo.png',
   })
 
-  queryListData.forEach((item: UserListenLaterDto) => {
+  queryListData
+    .filter((item: UserListenLaterDto) => !isBlockedContent({
+      title: item.title,
+      description: item.description,
+      explicit: item.explicit
+    }))
+    .forEach((item: UserListenLaterDto) => {
     feed.addItem({
       title: item.title,
       description: item.description,
@@ -68,7 +75,7 @@ export const generateListenLaterRSSXml = async (db: DbClient, userRef: string): 
         type: item.enclosure_type
       },
       itunesAuthor: item.author,
-      itunesExplicit: false,
+      itunesExplicit: isExplicitFlag(item.explicit),
       itunesSummary: item.description,
       itunesImage: item.image_url,
       itunesSeason: parseInt(item.season || '0'),
@@ -126,7 +133,13 @@ export const generatePlaylistRSSXml = async (db: DbClient, userRef: string, play
     itunesImage: 'https://porkast.com/porkast-text-logo.png',
   })
 
-  playlistItemList.forEach((item: UserPlaylistItemDto) => {
+  playlistItemList
+    .filter((item: UserPlaylistItemDto) => !isBlockedContent({
+      title: item.Title,
+      description: item.Description,
+      explicit: item.Explicit
+    }))
+    .forEach((item: UserPlaylistItemDto) => {
     feed.addItem({
       title: item.Title,
       description: item.Description,
@@ -140,7 +153,7 @@ export const generatePlaylistRSSXml = async (db: DbClient, userRef: string, play
         type: item.EnclosureType
       },
       itunesAuthor: item.Author,
-      itunesExplicit: false,
+      itunesExplicit: isExplicitFlag(item.Explicit),
       itunesSummary: item.Description,
       itunesImage: item.ImageUrl,
       itunesSeason: parseInt(item.Season || '0'),
@@ -199,7 +212,13 @@ export const generateSubscriptionRSS = async (db: DbClient, userRef: string, key
     itunesImage: 'https://porkast.com/porkast-text-logo.png',
   })
 
-  subsciptionItemList.forEach((item: FeedItem) => {
+  subsciptionItemList
+    .filter((item: FeedItem) => !isBlockedContent({
+      title: item.Title,
+      description: item.Description,
+      explicit: item.Explicit
+    }))
+    .forEach((item: FeedItem) => {
     feed.addItem({
       title: item.Title,
       description: item.Description,
@@ -213,7 +232,7 @@ export const generateSubscriptionRSS = async (db: DbClient, userRef: string, key
         type: item.EnclosureType
       },
       itunesAuthor: item.Author,
-      itunesExplicit: false,
+      itunesExplicit: isExplicitFlag(item.Explicit),
       itunesSummary: item.Description,
       itunesImage: item.ImageUrl,
       itunesSeason: parseInt(item.Season || '0'),

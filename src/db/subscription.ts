@@ -9,6 +9,7 @@ import { logger } from "../utils/logger"
 import { searchSpotifyEpisodes } from "../utils/spotify"
 import { PODCAST_SOURCES } from "../models/types"
 import { decodeDatabaseText } from "../utils/text"
+import { filterBlockedFeedItems } from "../utils/content-filter"
 import * as schema from './schema'
 
 type DbClient = ReturnType<typeof import('./client').createDb>
@@ -125,7 +126,7 @@ export async function queryUserLatestKeywordSubscriptionFeedItemList(
     )
     .then((r) => Number(r[0]?.count || 0))
 
-  return queryResultList.map((row) => ({
+  return filterBlockedFeedItems(queryResultList.map((row) => ({
     Id: row.id,
     FeedId: row.feed_id,
     GUID: row.guid || '',
@@ -157,7 +158,7 @@ export async function queryUserLatestKeywordSubscriptionFeedItemList(
     Count: totalCount,
     TookTime: 0,
     HasThumbnail: true,
-  }))
+  })))
 }
 
 export async function recoredUserKeywordSubscription(
@@ -464,7 +465,7 @@ export async function queryKeywordSubscriptionFeedItemList(
     )
     .then((r) => Number(r[0]?.count || 0))
 
-  return [queryResultList.map((row) => ({
+  return [filterBlockedFeedItems(queryResultList.map((row) => ({
     Id: row.id,
     FeedId: row.feed_id,
     GUID: row.guid || '',
@@ -497,7 +498,7 @@ export async function queryKeywordSubscriptionFeedItemList(
     TookTime: 0,
     HasThumbnail: true,
     IsListened: Boolean(row.is_listened),
-  })), totalCount]
+  }))), totalCount]
 }
 
 export async function queryUserAllKeywordSubscriptionFeedItemList(
@@ -532,7 +533,7 @@ export async function queryUserAllKeywordSubscriptionFeedItemList(
     OFFSET ${offset}
   `)
 
-  return queryResultList.map((queryResult) => mapSubscriptionFeedItem(queryResult, Number(queryResult.count || 0)))
+  return filterBlockedFeedItems(queryResultList.map((queryResult) => mapSubscriptionFeedItem(queryResult, Number(queryResult.count || 0))))
 }
 
 function mapSubscriptionFeedItem(queryResult: FeedItemDto, totalCount: number): FeedItem {

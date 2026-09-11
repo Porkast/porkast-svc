@@ -5,6 +5,7 @@ import Parser from "rss-parser"
 import { logger } from "./logger"
 import { feedItem, keywordSubscription } from "../db/schema"
 import type { Env } from "../env"
+import { CONTENT_POLICY_ERROR, isBlockedContent } from "./content-filter"
 
 let itunesFetch: typeof globalThis.fetch = globalThis.fetch
 let proxyBaseUrl: string = ''
@@ -95,6 +96,22 @@ export const searchPodcastEpisodeFromItunes = async (q: string, entity: string, 
             continue
         }
 
+        const explicitness = String(resultItem.trackExplicitness || resultItem.collectionExplicitness || resultItem.contentAdvisoryRating || '')
+        const categories = Array.isArray(resultItem.genres)
+            ? resultItem.genres
+                .map((genre) => (typeof genre === 'string' ? genre : genre?.name))
+                .filter((name): name is string => typeof name === 'string' && name.length > 0)
+            : []
+        if (isBlockedContent({
+            title: resultItem.trackName,
+            channelTitle: resultItem.collectionName,
+            description: resultItem.description,
+            categories,
+            explicit: explicitness
+        })) {
+            continue
+        }
+
         // format pubdate as yy:mm:dd
         const formatedPubDate = new Date(resultItem.releaseDate).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
 
@@ -114,7 +131,7 @@ export const searchPodcastEpisodeFromItunes = async (q: string, entity: string, 
             EnclosureLength: String(resultItem.trackTimeMillis),
             Duration: duration,
             Episode: "",
-            Explicit: "",
+            Explicit: explicitness,
             Season: "",
             EpisodeType: "",
             Description: resultItem.description,
@@ -156,6 +173,14 @@ export const buildFeedItemAndKeywordInputList = async (keyword: string, country:
 
 
     for (const item of feedItemList) {
+        if (isBlockedContent({
+            title: item.Title,
+            channelTitle: item.ChannelTitle,
+            description: item.Description,
+            explicit: item.Explicit
+        })) {
+            continue
+        }
         const itemId = await generateFeedItemId(item.FeedLink, item.Title)
         const channelId = await generateFeedItemId(item.FeedLink, item.ChannelTitle)
         const feedItemInput: typeof feedItem.$inferInsert = {
@@ -212,7 +237,23 @@ export const getPodcastEpisodeInfo = async (podcastId: string, episodeId: string
     }
     const feedLink = podcastInfo.feedUrl
     const rss = await parsePodcastRSS(feedLink);
+    if (isBlockedContent({
+        title: rss.title,
+        description: rss.description,
+        categories: rss.categories || rss.itunes?.categories,
+        explicit: rss.itunesExplicit
+    })) {
+        throw new Error(CONTENT_POLICY_ERROR)
+    }
     const episodeInfo = buildFeedItemModel(rss, feedLink, episodeId, podcastId);
+    if (isBlockedContent({
+        title: episodeInfo.Title,
+        description: episodeInfo.Description,
+        channelTitle: episodeInfo.ChannelTitle,
+        explicit: episodeInfo.Explicit
+    })) {
+        throw new Error(CONTENT_POLICY_ERROR)
+    }
     var channelInfo: FeedChannel = buildFeedChannelModel(rss, feedLink, podcastId);
 
     return {
@@ -222,7 +263,12 @@ export const getPodcastEpisodeInfo = async (podcastId: string, episodeId: string
 }
 
 const parsePodcastRSS = async (feedUrl: string): Promise<PodcastFeed & Parser.Output<PodcastItem>> => {
-    const parser: Parser<PodcastFeed, PodcastItem> = new Parser();
+    const parser: Parser<PodcastFeed, PodcastItem> = new Parser({
+        customFields: {
+            feed: [['itunes:explicit', 'itunesExplicit']],
+            item: [['itunes:explicit', 'itunesExplicit']],
+        }
+    } as any);
     const rssResp = await fetch(feedUrl);
     const rssStr = await rssResp.text();
     const feed = await parser.parseString(rssStr);
@@ -263,7 +309,7 @@ const buildFeedItemModel = (rssFeed: PodcastFeed & Parser.Output<PodcastItem>, f
         EnclosureLength: String(targetItem?.enclosure?.length || ''),
         Duration: formaedDuration,
         Episode: String(targetItem?.itunesEpisode || ''),
-        Explicit: String(targetItem?.itunesExplicit || false),
+        Explicit: String(targetItem?.itunesExplicit || ''),
         Season: String(targetItem?.itunesSeason || ''),
         EpisodeType: String(targetItem?.itunesEpisodeType || ''),
         Description: targetItem?.description || targetItem?.content || "",
