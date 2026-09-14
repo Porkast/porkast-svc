@@ -27,3 +27,24 @@ export type NotificationParams = {
     titleList: string[]
     link: string
 }
+
+export type KeywordUpdateItem = {
+    keyword: string
+    updateCount: number
+    titleList: string[]
+    link: string
+    subscriptionId: string
+    latestKsId: number
+    latestKsCreateTime?: string | null
+    totalCount: number
+    miniAppLink?: string
+    feedItems?: import('./feeds').FeedItem[]
+}
+
+export type AggregatedNotificationParams = {
+    to: string
+    subject?: string
+    nickname: string
+    totalUpdateCount: number
+    keywordUpdates: KeywordUpdateItem[]
+}

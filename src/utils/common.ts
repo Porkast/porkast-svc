@@ -44,3 +44,12 @@ export const generatePlaylistItemId = async (playlistId: string, itemId: string)
 export const generateID = async (): Promise<string> => {
     return crypto.randomUUID()
 }
+
+export const escapeHtml = (text: string): string => {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+}

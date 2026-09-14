@@ -76,6 +76,38 @@ ${updatePodcastInfoStr}
     }))
 }
 
+export function sendAggregatedSubscriptionNewUpdateMessage(
+    botToken: string,
+    chatId: string,
+    totalUpdateCount: number,
+    keywordUpdates: Array<{
+        keyword: string;
+        updateCount: number;
+        feedItems?: FeedItem[];
+        miniAppLink: string;
+    }>
+) {
+    let message = `You have <b>${totalUpdateCount}</b> new episode${totalUpdateCount > 1 ? 's' : ''} across <b>${keywordUpdates.length}</b> subscriptions:\n\n`
+    const inlineKeyboard: { text: string; web_app: { url: string } }[][] = []
+
+    for (const item of keywordUpdates) {
+        message += `<b>#${escapeHtml(item.keyword)}</b> (${item.updateCount} new)\n`
+        const items = item.feedItems || []
+        for (let i = 0; i < Math.min(items.length, 3); i++) {
+            message += `• ${escapeHtml(items[i].Title)}\n`
+        }
+        message += '\n'
+        inlineKeyboard.push([{ text: `Open #${item.keyword}`, web_app: { url: item.miniAppLink } }])
+    }
+
+    sendMessage(botToken, JSON.stringify({
+        chat_id: chatId,
+        text: message,
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: inlineKeyboard }
+    }))
+}
+
 export async function sendCommonTextMessage(botToken: string, chatId: number, text: string) {
     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
     try {

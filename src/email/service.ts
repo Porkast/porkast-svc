@@ -1,9 +1,10 @@
 import type { SendEmail } from '@cloudflare/workers-types';
 import { CreateEmailResponse, Resend } from "resend";
-import type { NotificationParams } from "../models/subscription";
-import { NOTIFICATION_TEMPLATE } from '../templates/notification';
+import type { NotificationParams, AggregatedNotificationParams } from "../models/subscription";
+import { NOTIFICATION_TEMPLATE, AGGREGATED_NOTIFICATION_TEMPLATE } from '../templates/notification';
 import { LOGIN_OTP_TEMPLATE } from '../templates/login-otp';
 import { ADMIN_NEW_USER_TEMPLATE } from '../templates/admin-new-user';
+import { escapeHtml } from '../utils/common';
 
 var resendInstance: Resend
 
@@ -95,6 +96,83 @@ export async function sendSubscriptionUpdateEmail(
         to: params.to,
         from: { email: 'noreply@porkast.com', name: 'Porkast' },
         subject: params.subject,
+        html: htmlTempText,
+        text: textContent,
+    });
+}
+
+export async function sendAggregatedSubscriptionUpdateEmail(
+    sender: EmailSenderEnv,
+    params: AggregatedNotificationParams,
+    options?: { webBaseUrl?: string }
+): Promise<any> {
+    const isSingle = params.keywordUpdates.length === 1;
+    const firstUpdate = params.keywordUpdates[0];
+
+    const subject = params.subject || (isSingle
+        ? `#${firstUpdate.keyword} has new podcasts update`
+        : `${params.totalUpdateCount} new episodes across ${params.keywordUpdates.length} subscriptions`);
+
+    const headerTitle = isSingle
+        ? `#${firstUpdate.keyword} has ${params.totalUpdateCount} new podcast update${params.totalUpdateCount > 1 ? 's' : ''}`
+        : `${params.totalUpdateCount} new podcast updates across ${params.keywordUpdates.length} subscriptions`;
+
+    const headerSubtitle = isSingle
+        ? `Your subscription #${firstUpdate.keyword} has new podcast updates.`
+        : `Your subscribed keywords have new podcast updates:`;
+
+    const mainLink = isSingle
+        ? firstUpdate.link
+        : (options?.webBaseUrl || 'https://porkast.com');
+
+    const buttonText = isSingle ? 'Listen Now' : 'View on Porkast';
+
+    const keywordSectionsHtml = params.keywordUpdates.map((k) => {
+        const episodeListHtml = k.titleList && k.titleList.length > 0
+            ? `<ul style="margin: 0; padding-left: 18px; color: #555; font-size: 14px; line-height: 22px;">
+                ${k.titleList.map((t) => `<li style="margin-bottom: 4px;">${escapeHtml(t)}</li>`).join('')}
+               </ul>`
+            : '';
+
+        return `<div style="margin-bottom: 16px; padding: 14px 16px; background: #fdfdfd; border-left: 4px solid #2F67F6; border-radius: 4px; border-top: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
+            <div style="font-size: 16px; font-weight: bold; margin-bottom: 8px; color: #333;">
+                <a href="${k.link}" target="_blank" style="color: #2F67F6; text-decoration: none;">#${escapeHtml(k.keyword)}</a>
+                <span style="font-size: 13px; font-weight: normal; color: #888; margin-left: 8px;">(${k.updateCount} new)</span>
+            </div>
+            ${episodeListHtml}
+            <div style="margin-top: 8px;">
+                <a href="${k.link}" target="_blank" style="font-size: 13px; color: #2F67F6; text-decoration: underline;">View episodes &rarr;</a>
+            </div>
+        </div>`;
+    }).join('');
+
+    const htmlTempText = renderTemplate(AGGREGATED_NOTIFICATION_TEMPLATE, {
+        headerTitle,
+        nickname: params.nickname,
+        headerSubtitle,
+        keywordSectionsHtml,
+        link: mainLink,
+        buttonText,
+    });
+
+    const textContent = `Hi ${params.nickname || 'there'},\n\n` +
+        (isSingle
+            ? `There are ${params.totalUpdateCount} new podcast episodes updated for #${firstUpdate.keyword}:\n\n` +
+              (firstUpdate.titleList?.map((t) => `- ${t}`).join('\n') || '') +
+              `\n\nListen now: ${firstUpdate.link}`
+            : `You have ${params.totalUpdateCount} new podcast episodes across ${params.keywordUpdates.length} subscriptions:\n\n` +
+              params.keywordUpdates.map((k) =>
+                  `#${k.keyword} (${k.updateCount} new):\n` +
+                  (k.titleList?.map((t) => `  - ${t}`).join('\n') || '') +
+                  `\n  Link: ${k.link}`
+              ).join('\n\n') +
+              `\n\nListen now: ${mainLink}`) +
+        `\n\nBest regards,\nPorkast Team`;
+
+    return executeSendEmail(sender, {
+        to: params.to,
+        from: { email: 'noreply@porkast.com', name: 'Porkast' },
+        subject,
         html: htmlTempText,
         text: textContent,
     });
