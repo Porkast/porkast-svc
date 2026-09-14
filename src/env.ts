@@ -3,7 +3,7 @@ import type { D1Database, SendEmail } from '@cloudflare/workers-types'
 export interface Env {
   DB: D1Database
   EMAIL?: SendEmail
-  SUB_UPDATE_QUEUE: Queue<SubscriptionUpdateMessage>
+  SUB_UPDATE_QUEUE: Queue<SubUpdateQueueMessage>
   TELEGRAM_STATE: KVNamespace
   TELE_BOT_TOKEN: string
   BOT_WEBHOOK_URL: string
@@ -28,6 +28,20 @@ export interface Env {
   DODO_PRODUCT_UNLIMITED: string
 }
 
+export interface SubscriptionItemMessage {
+  subscriptionId: string
+  keyword: string
+  country: string
+  source: string
+  excludeFeedId: string
+  latestId: number
+}
+
+export interface UserSubscriptionUpdateMessage {
+  userId: string
+  subscriptions: SubscriptionItemMessage[]
+}
+
 export interface SubscriptionUpdateMessage {
   userId: string
   keyword: string
@@ -37,3 +51,5 @@ export interface SubscriptionUpdateMessage {
   subscriptionId: string
   latestId: number
 }
+
+export type SubUpdateQueueMessage = UserSubscriptionUpdateMessage | SubscriptionUpdateMessage
