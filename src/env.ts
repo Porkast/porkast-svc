@@ -1,12 +1,13 @@
-import type { D1Database } from '@cloudflare/workers-types'
+import type { D1Database, SendEmail } from '@cloudflare/workers-types'
 
 export interface Env {
   DB: D1Database
+  EMAIL?: SendEmail
   SUB_UPDATE_QUEUE: Queue<SubscriptionUpdateMessage>
   TELEGRAM_STATE: KVNamespace
   TELE_BOT_TOKEN: string
   BOT_WEBHOOK_URL: string
-  RESEND_API_KEY: string
+  RESEND_API_KEY?: string
   SPOTIFY_CLIENT_ID: string
   SPOTIFY_CLIENT_SECRET: string
   PODCAST_INDEX_API_KEY: string
