@@ -22,7 +22,7 @@ const server = Bun.serve({
 
       if (!term) return new Response('Missing term', { status: 400 })
 
-      const searchUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=${entity || ''}&media=podcast&country=${country || 'US'}&limit=${limit || '200'}`
+      const searchUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=${entity || ''}&media=podcast&country=${country || 'US'}&limit=${limit || '200'}&explicit=No`
 
       try {
         const res = proxyAgent

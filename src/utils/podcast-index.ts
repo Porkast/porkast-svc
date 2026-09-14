@@ -47,7 +47,7 @@ async function generateAuthHeaders(apiKey: string, apiSecret: string): Promise<H
 
 async function searchPodcasts(apiKey: string, apiSecret: string, keyword: string, max: number = MAX_SEARCH_FEEDS): Promise<PodcastIndexFeed[]> {
   const headers = await generateAuthHeaders(apiKey, apiSecret)
-  const url = `${API_BASE}/search/byterm?q=${encodeURIComponent(keyword)}&max=${max}`
+  const url = `${API_BASE}/search/byterm?q=${encodeURIComponent(keyword)}&max=${max}&clean`
 
   const res = await fetch(url, { headers, method: 'GET' })
 

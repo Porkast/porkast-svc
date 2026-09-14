@@ -75,7 +75,7 @@ export const generateListenLaterRSSXml = async (db: DbClient, userRef: string): 
         type: item.enclosure_type
       },
       itunesAuthor: item.author,
-      itunesExplicit: isExplicitFlag(item.explicit),
+      itunesExplicit: false,
       itunesSummary: item.description,
       itunesImage: item.image_url,
       itunesSeason: parseInt(item.season || '0'),
@@ -153,7 +153,7 @@ export const generatePlaylistRSSXml = async (db: DbClient, userRef: string, play
         type: item.EnclosureType
       },
       itunesAuthor: item.Author,
-      itunesExplicit: isExplicitFlag(item.Explicit),
+      itunesExplicit: false,
       itunesSummary: item.Description,
       itunesImage: item.ImageUrl,
       itunesSeason: parseInt(item.Season || '0'),
@@ -232,7 +232,7 @@ export const generateSubscriptionRSS = async (db: DbClient, userRef: string, key
         type: item.EnclosureType
       },
       itunesAuthor: item.Author,
-      itunesExplicit: isExplicitFlag(item.Explicit),
+      itunesExplicit: false,
       itunesSummary: item.Description,
       itunesImage: item.ImageUrl,
       itunesSeason: parseInt(item.Season || '0'),

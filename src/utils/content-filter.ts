@@ -85,9 +85,21 @@ const BLOCKED_PHRASES = [
   '成人游戏',
   '福利姬',
   '援助交际',
+  '乱伦',
+  '自慰',
+  '打飞机',
+  '口交',
+  '肛交',
+  '群交',
+  'adult audio',
+  'erotic audio',
+  'erotic story',
+  'erotic stories',
+  'erotica',
+  'sensual massage',
 ]
 
-const BLOCKED_WORDS = ['porno', 'nudes', 'escort', 'hookup']
+const BLOCKED_WORDS = ['porno', 'nudes', 'nude', 'escort', 'hookup', 'erotica', 'incest', 'intercourse', 'anal']
 
 const BLOCKED_CATEGORIES = ['sexuality', 'adult', 'erotic', 'pornography', 'nsfw', 'sex', 'mature']
 
@@ -143,6 +155,9 @@ export interface ContentCheckInput {
 }
 
 export function isBlockedContent(input: ContentCheckInput): boolean {
+  if (isExplicitFlag(input.explicit)) {
+    return true
+  }
   if (isBlockedCategory(input.categories)) {
     return true
   }

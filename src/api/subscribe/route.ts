@@ -10,12 +10,19 @@ import { userSubscription } from '../../db/schema'
 import { setSpotifyCredentials } from '../../utils/spotify'
 import { setPodcastIndexCredentials } from '../../utils/podcast-index'
 import { initItunesProxy } from '../../utils/itunes'
+import { isBlockedSearchQuery } from '../../utils/content-filter'
 import type { Env, SubscriptionUpdateMessage } from "../../env";
 
 export const subscribeRouter = new Hono<{ Bindings: Env }>()
 
 subscribeRouter.post('/keyword', zValidator('json', KeywordSubscribeSchema), async (c) => {
     const request: KeywordSubscribeRequestData = await c.req.json();
+    if (isBlockedSearchQuery(request.keyword)) {
+        return c.json({
+            code: 1,
+            msg: 'Subscription keyword violates content policy'
+        }, 400);
+    }
     const db = createDb(c.env.DB)
     const message = await updateUserSubscription(db, request)
 
@@ -75,6 +82,12 @@ subscribeRouter.get('/episodes/:userId', async (c) => {
 subscribeRouter.get('/:userId/:keyword', async (c) => {
     const userId = c.req.param('userId');
     const keyword = decodeURIComponent(c.req.param('keyword'));
+    if (isBlockedSearchQuery(keyword)) {
+        return c.json({
+            code: 1,
+            msg: 'Subscription keyword violates content policy'
+        }, 400);
+    }
     const page = c.req.query('page') || '1';
     const limit = 10;
     const offset = (Number(page) - 1) * limit;

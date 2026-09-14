@@ -8,6 +8,7 @@ import { logger } from '../utils/logger';
 import { SEARCH_COMMAND } from './bot.types';
 import { DEFAULT_PODCAST_SOURCE } from '../models/types';
 import { getPodcastEpisodeInfo, searchPodcastEpisodeFromItunes } from '../utils/itunes';
+import { isBlockedSearchQuery } from '../utils/content-filter';
 import type { Env } from '../env';
 import type { DbClient } from '../db/types';
 
@@ -15,6 +16,11 @@ import type { DbClient } from '../db/types';
 export async function handleSearch(env: Env, chatId: number, keyword: string, page: number = 0, messageId?: number): Promise<void> {
     const botToken = env.TELE_BOT_TOKEN;
     const miniAppLink = env.TELE_MINI_APP_LINK;
+    if (isBlockedSearchQuery(keyword)) {
+        logger.debug(`Blocked prohibited search query: "${keyword}"`);
+        await sendCommonTextMessage(botToken, chatId, 'This search query is not permitted by our content safety policy.');
+        return;
+    }
     try {
         const SEARCH_PAGE_SIZE = 10;
         const offset = page * SEARCH_PAGE_SIZE;
@@ -149,6 +155,10 @@ export async function handleSearchCallbackQuery(db: DbClient, env: Env, teleUser
         await handleSearch(env, chatId, keyword, currentPage, messageId);
     } else if (action === 'search_subscribe') {
         const [keyword] = payload;
+        if (isBlockedSearchQuery(keyword)) {
+            await sendCommonTextMessage(botToken, chatId, 'This subscription keyword is not permitted by our content safety policy.');
+            return;
+        }
         try {
             const userInfo = await getUserInfoByTelegramId(db, teleUserId);
             const result = await recordUserKeywordSubscription(db, userInfo.userId, keyword, DEFAULT_PODCAST_SOURCE, 'US', '', 0);

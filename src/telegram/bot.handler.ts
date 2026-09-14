@@ -8,6 +8,7 @@ import type { FeedItem, FeedChannel } from '../models/feeds';
 import type { InlineKeyboardButton, RenderedDetail } from './types';
 import { getUserInfoByTelegramId, createUserFromTelegramInfo } from '../db/user';
 import { createDb } from '../db/client';
+import { isBlockedSearchQuery } from '../utils/content-filter';
 import type { Env } from '../env';
 
 // Temporary storage for search result GUIDs to keep callback_data short
@@ -110,6 +111,10 @@ export async function processUpdate(env: Env, update: any) {
             }
         } else if (text) {
             logger.debug(`Received search query from ${userName} (${chatId}): "${text}"`);
+            if (isBlockedSearchQuery(text.trim())) {
+                await sendCommonTextMessage(env.TELE_BOT_TOKEN, chatId, 'This search query is not permitted by our content safety policy.');
+                return;
+            }
             await handleSearch(env, chatId, text.trim(), 0);
         }
     } else if (update.callback_query) {
