@@ -4,6 +4,7 @@ import { userSubscription, keywordSubscription } from "../../db/schema"
 import { doSearchSubscription, queryUserAllKeywordSubscriptionFeedItemList, queryUserKeywordSubscriptionList } from "../../db/subscription"
 import { checkKeywordLimit } from "../membership/membership"
 import { logger } from "../../utils/logger"
+import { isBlockedSearchQuery } from "../../utils/content-filter"
 import type { FeedItem } from "../../models/feeds"
 import type { SubscriptionDataDto } from "../../models/subscription"
 import type { DbClient } from '../../db/types'
@@ -15,6 +16,10 @@ export async function updateUserSubscription(db: DbClient, request: KeywordSubsc
     const excludeFeedId = request.excludeFeedId || ''
     const source = request.source
     const sortByDate = request.sortByDate
+
+    if (isBlockedSearchQuery(keyword)) {
+        return 'Subscription keyword violates content policy'
+    }
 
     const limitCheck = await checkKeywordLimit(db, userId)
     if (!limitCheck.allowed) {
