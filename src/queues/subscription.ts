@@ -6,7 +6,7 @@ import { searchSpotifyEpisodes } from '../utils/spotify'
 import { searchEpisodesFromPodcastIndex } from '../utils/podcast-index'
 import { logger } from '../utils/logger'
 import { sendSubscriptionNewUpdateMessage } from '../telegram/bot'
-import { sendSubscriptionUpdateEmail } from '../email/resend'
+import { sendSubscriptionUpdateEmail } from '../email/service'
 import { getNickname } from '../utils/common'
 import type { NotificationParams } from '../models/subscription'
 import type { FeedItem as FeedItemType } from '../models/feeds'
@@ -279,7 +279,7 @@ async function notifyUser(
           subject: "#" + keyword + " has new podcasts update",
         }
         try {
-          await sendSubscriptionUpdateEmail(env.RESEND_API_KEY, emailParams)
+          await sendSubscriptionUpdateEmail(env, emailParams)
         } catch (e) {
           logger.error('Send subscription update email failed', e)
         }

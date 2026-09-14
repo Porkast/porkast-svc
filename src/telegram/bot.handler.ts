@@ -3,7 +3,7 @@ import { handleSubscribeCommand, handleSubscribeCallbackQuery } from './bot.hand
 import { handleSearch, handleSearchCallbackQuery } from './bot.handler.search';
 import { HELP_COMMAND, SEARCH_COMMAND, START_COMMAND, SUBSCRIBE_COMMAND } from './bot.types';
 import { logger } from '../utils/logger';
-import { sendAdminNewUserEmail } from '../email/resend';
+import { sendAdminNewUserEmail } from '../email/service';
 import type { FeedItem, FeedChannel } from '../models/feeds';
 import type { InlineKeyboardButton, RenderedDetail } from './types';
 import { getUserInfoByTelegramId, createUserFromTelegramInfo } from '../db/user';
@@ -87,9 +87,9 @@ export async function processUpdate(env: Env, update: any) {
                         last_name: update.message.from.last_name
                     });
                     
-                    if (env.ADMIN_EMAIL && env.RESEND_API_KEY) {
+                    if (env.ADMIN_EMAIL && (env.EMAIL || env.RESEND_API_KEY)) {
                         try {
-                            await sendAdminNewUserEmail(env.RESEND_API_KEY, env.ADMIN_EMAIL, env.PORKAST_WEB_BASE_URL, {
+                            await sendAdminNewUserEmail(env, env.ADMIN_EMAIL, env.PORKAST_WEB_BASE_URL, {
                                 userId: newUser.userId,
                                 nickname: newUser.nickname,
                                 telegramId: newUser.telegramId,

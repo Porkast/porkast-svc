@@ -22,7 +22,7 @@ mock.module('../../db/prisma.client', () => ({
   default: prismaMock,
 }));
 
-mock.module('../../email/resend', () => ({
+mock.module('../../email/service', () => ({
   sendLoginOtpEmail: sendLoginOtpEmailMock,
 }));
 

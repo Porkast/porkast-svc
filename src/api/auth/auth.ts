@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomInt, randomUUID } from 'crypto';
 import { eq, and, gt, desc, sql, isNull } from 'drizzle-orm';
 import { createDb } from '../../db/client';
 import { verificationToken, userInfo as userInfoTable, appSession, userMembership } from '../../db/schema';
-import { sendLoginOtpEmail, sendAdminNewUserEmail } from '../../email/resend';
+import { sendLoginOtpEmail, sendAdminNewUserEmail } from '../../email/service';
 import { logger } from '../../utils/logger';
 import { normalizeNickname, isValidNicknameFormat } from '../../utils/nickname';
 import { ensureUniqueNickname, generateFallbackNickname } from '../../db/user';
@@ -81,7 +81,7 @@ export async function createEmailOtpChallenge(env: Env, email: string) {
   });
 
   if (!isDemo) {
-    await sendLoginOtpEmail(env.RESEND_API_KEY, normalizedEmail, code, OTP_EXPIRY_MINUTES);
+    await sendLoginOtpEmail(env, normalizedEmail, code, OTP_EXPIRY_MINUTES);
   } else {
     logger.info(`Demo OTP requested for ${normalizedEmail}`);
   }
@@ -145,9 +145,9 @@ export async function verifyEmailOtp(env: Env, email: string, code: string, nick
     const newUser = await db.select().from(userInfoTable).where(eq(userInfoTable.id, newId)).limit(1);
     currentUser = newUser[0];
 
-    if (env.ADMIN_EMAIL && env.RESEND_API_KEY) {
+    if (env.ADMIN_EMAIL && (env.EMAIL || env.RESEND_API_KEY)) {
       try {
-        await sendAdminNewUserEmail(env.RESEND_API_KEY, env.ADMIN_EMAIL, env.PORKAST_WEB_BASE_URL, {
+        await sendAdminNewUserEmail(env, env.ADMIN_EMAIL, env.PORKAST_WEB_BASE_URL, {
           userId: newId,
           email: normalizedEmail,
           nickname: finalNickname,

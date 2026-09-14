@@ -19,6 +19,11 @@
 			"0 */3 * * *"
 		]
 	},
+	"send_email": [
+		{
+			"name": "EMAIL"
+		}
+	],
 	"queues": {
 		"producers": [
 			{
