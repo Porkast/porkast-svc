@@ -12,6 +12,7 @@ interface FakeDbState {
   userRows: Array<Record<string, unknown>>
   inserted: RecordedWrite[]
   updated: RecordedWrite[]
+  checkoutCalls: Array<Record<string, unknown>>
 }
 
 const state: FakeDbState = {
@@ -19,6 +20,7 @@ const state: FakeDbState = {
   userRows: [],
   inserted: [],
   updated: [],
+  checkoutCalls: [],
 }
 
 function createFakeDb() {
@@ -75,11 +77,24 @@ class FakeDodoPayments {
       return unwrapResult
     },
   }
+  checkoutSessions = {
+    create: async (params: Record<string, unknown>) => {
+      state.checkoutCalls.push(params)
+      return {
+        session_id: 'cs_test',
+        checkout_url: 'https://checkout.dodopayments.com/cs_test',
+      }
+    },
+  }
 }
 
 mock.module('dodopayments', () => ({ default: FakeDodoPayments }))
 
-const { handleDodoWebhook, DodoWebhookVerificationError } = await import('./dodo')
+const {
+  handleDodoWebhook,
+  createDodoCheckoutSession,
+  DodoWebhookVerificationError,
+} = await import('./dodo')
 
 const headers = {
   'webhook-id': 'evt_1',
@@ -104,8 +119,70 @@ beforeEach(() => {
   state.userRows = []
   state.inserted = []
   state.updated = []
+  state.checkoutCalls = []
   unwrapResult = null
   unwrapError = null
+})
+
+describe('createDodoCheckoutSession', () => {
+  const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+
+  it('blocks checkout when an App Store membership is active', async () => {
+    state.userRows = [{ id: 'user_1', email: 'a@b.com', nickname: 'A' }]
+    state.subscriptionRows = [{
+      id: 'row_1',
+      userId: 'user_1',
+      provider: 'appstore',
+      isActive: true,
+      tier: 'pro',
+      productId: 'podcastsearch.pro20',
+      expiresDate: futureDate,
+    }]
+
+    const result = await createDodoCheckoutSession(createFakeDb(), env, 'user_1', 'unlimited')
+
+    expect(result.alreadySubscribed).toBe(true)
+    expect(result.provider).toBe('appstore')
+    expect(result.currentPlan).toBe('pro')
+    expect(result.checkoutUrl).toBeNull()
+    expect(state.checkoutCalls).toHaveLength(0)
+  })
+
+  it('returns the current Dodo plan when already subscribed through Dodo', async () => {
+    state.userRows = [{ id: 'user_1', email: 'a@b.com', nickname: 'A' }]
+    state.subscriptionRows = [{
+      id: 'row_1',
+      userId: 'user_1',
+      provider: 'dodo',
+      isActive: true,
+      tier: 'unlimited',
+      productId: 'pdt_unlimited',
+      expiresDate: futureDate,
+    }]
+
+    const result = await createDodoCheckoutSession(createFakeDb(), env, 'user_1', 'pro')
+
+    expect(result.alreadySubscribed).toBe(true)
+    expect(result.provider).toBe('dodo')
+    expect(result.currentPlan).toBe('unlimited')
+    expect(state.checkoutCalls).toHaveLength(0)
+  })
+
+  it('creates a checkout session when no membership is active', async () => {
+    state.userRows = [{ id: 'user_1', email: 'a@b.com', nickname: 'A' }]
+
+    const result = await createDodoCheckoutSession(createFakeDb(), env, 'user_1', 'pro')
+
+    expect(result.alreadySubscribed).toBe(false)
+    expect(result.provider).toBeNull()
+    expect(result.checkoutUrl).toBe('https://checkout.dodopayments.com/cs_test')
+    expect(state.checkoutCalls).toHaveLength(1)
+    expect(state.checkoutCalls[0].metadata).toEqual({
+      userId: 'user_1',
+      plan: 'pro',
+      provider: 'dodo',
+    })
+  })
 })
 
 describe('handleDodoWebhook', () => {

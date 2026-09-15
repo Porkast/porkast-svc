@@ -1,9 +1,7 @@
 import { logger } from "../../utils/logger"
-import {
-  PRODUCT_TIER_MAP,
-  TIER_KEYWORDS_LIMIT,
-} from "./types"
-import { eq, and } from 'drizzle-orm'
+import { PRODUCT_TIER_MAP } from "./types"
+import { decodeJWSPayload } from "./jws"
+import { eq } from 'drizzle-orm'
 import * as schema from '../../db/schema'
 import type { DbClient } from '../../db/types'
 
@@ -42,16 +40,6 @@ interface RenewalInfo {
   expirationIntent?: number
   isInBillingRetryPeriod?: boolean
   signedDate?: number
-}
-
-function decodeJWSPayload<T>(signedPayload: string): T {
-  const parts = signedPayload.split(".")
-  if (parts.length < 3) {
-    throw new Error(`Invalid JWS: expected 3 parts, got ${parts.length}`)
-  }
-  const payloadEncoded = parts[1]
-  const payloadJson = atob(payloadEncoded)
-  return JSON.parse(payloadJson)
 }
 
 function resolveTier(productId: string): string {

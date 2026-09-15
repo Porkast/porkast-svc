@@ -59,6 +59,7 @@ export interface CheckoutResult {
   checkoutUrl: string | null
   alreadySubscribed: boolean
   currentPlan: MembershipPlan | null
+  provider: string | null
 }
 
 export async function createDodoCheckoutSession(
@@ -78,12 +79,13 @@ export async function createDodoCheckoutSession(
     throw new Error("User email is required for checkout")
   }
 
-  const activeDodoMembership = await getActiveDodoMembership(db, userId)
-  if (activeDodoMembership) {
+  const activeMembership = await getActiveMembership(db, userId)
+  if (activeMembership) {
     return {
       checkoutUrl: null,
       alreadySubscribed: true,
-      currentPlan: resolvePlanFromProductId(env, activeDodoMembership.productId),
+      currentPlan: resolvePlanFromMembership(env, activeMembership),
+      provider: activeMembership.provider ?? null,
     }
   }
 
@@ -117,6 +119,7 @@ export async function createDodoCheckoutSession(
     checkoutUrl: session.checkout_url,
     alreadySubscribed: false,
     currentPlan: null,
+    provider: null,
   }
 }
 
@@ -139,7 +142,9 @@ export async function createDodoPortalSession(
 
   const membership = memberships[0]
   if (!membership?.providerCustomerId) {
-    throw new Error("No Dodo subscription found for this user")
+    throw new Error(
+      "No Dodo subscription found for this user. If you subscribed through the App Store, manage the subscription from your Apple ID settings."
+    )
   }
 
   requireDodoApiKey(env)
@@ -251,14 +256,27 @@ function resolvePlanFromProductId(env: Env, productId: string): MembershipPlan |
   return null
 }
 
-async function getActiveDodoMembership(db: DbClient, userId: string) {
+function resolvePlanFromMembership(
+  env: Env,
+  membership: { productId: string; tier: string }
+): MembershipPlan | null {
+  const planFromProduct = resolvePlanFromProductId(env, membership.productId)
+  if (planFromProduct) {
+    return planFromProduct
+  }
+  if (membership.tier === "pro" || membership.tier === "unlimited") {
+    return membership.tier
+  }
+  return null
+}
+
+async function getActiveMembership(db: DbClient, userId: string) {
   const result = await db
     .select()
     .from(schema.userMembership)
     .where(
       and(
         eq(schema.userMembership.userId, userId),
-        eq(schema.userMembership.provider, DODO_PROVIDER),
         eq(schema.userMembership.isActive, true)
       )
     )

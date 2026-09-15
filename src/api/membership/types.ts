@@ -20,6 +20,12 @@ export const TIER_KEYWORDS_LIMIT: Record<string, number | null> = {
   unlimited: null, // null = unlimited
 }
 
+export const TIER_RANK: Record<string, number> = {
+  free: 0,
+  pro: 1,
+  unlimited: 2,
+}
+
 export const PRODUCT_TIER_MAP: Record<string, string> = {
   "podcastsearch.pro20": "pro",
   "podcastsearch.unlimited": "unlimited",
@@ -43,6 +49,7 @@ export interface JWSTransactionDecoded {
 export interface MembershipStatusResult {
   tier: string
   productId: string | null
+  provider: string | null
   expiresDate: string | null
   isActive: boolean
   willRenew: boolean
