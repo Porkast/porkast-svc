@@ -1,35 +1,23 @@
 import type { DbClient } from "../../db/types"
 import { eq, and, desc, sql } from 'drizzle-orm'
 import * as schema from '../../db/schema'
+import { decodeJWSPayload as decodeRawPayload } from "./jws"
 import {
   JWSTransactionDecoded,
   MembershipStatusResult,
   PRODUCT_TIER_MAP,
   TIER_KEYWORDS_LIMIT,
+  TIER_RANK,
 } from "./types"
 
 function decodeJWSPayload(signedTransaction: string): JWSTransactionDecoded {
-  const parts = signedTransaction.split(".")
-  if (parts.length < 3) {
-    throw new Error("Invalid JWS transaction: expected 3 parts")
+  const payload = decodeRawPayload<Partial<JWSTransactionDecoded>>(signedTransaction)
+  if (!payload.transactionId || !payload.originalTransactionId || !payload.productId) {
+    throw new Error(
+      "Invalid transaction payload: missing transactionId, originalTransactionId or productId"
+    )
   }
-  const payloadEncoded = parts[1]
-  const payloadJson = atob(payloadEncoded)
-  const payload = JSON.parse(payloadJson)
-  return {
-    transactionId: payload.transactionId,
-    originalTransactionId: payload.originalTransactionId,
-    productId: payload.productId,
-    expiresDate: payload.expiresDate,
-    revocationDate: payload.revocationDate,
-    revocationReason: payload.revocationReason,
-    offerType: payload.offerType,
-    offerIdentifier: payload.offerIdentifier,
-    type: payload.type,
-    inAppOwnershipType: payload.inAppOwnershipType,
-    signedDate: payload.signedDate,
-    environment: payload.environment,
-  }
+  return payload as JWSTransactionDecoded
 }
 
 function resolveTier(productId: string): string {
@@ -133,7 +121,7 @@ export async function syncMembershipForUser(
     latestTransactionId,
     expiresDate: expiresDateObj?.toISOString() ?? null,
     isActive,
-    willRenew: true,
+    willRenew: !isRevoked,
     isInBillingRetry: false,
     environment,
   }
@@ -161,6 +149,29 @@ export async function syncMembershipForUser(
   return getUserMembershipStatus(db, userId)
 }
 
+export function pickBestMembership<T extends { tier: string; expiresDate: string | null }>(
+  memberships: T[]
+): T | null {
+  return memberships.reduce<T | null>((best, candidate) => {
+    if (!best) {
+      return candidate
+    }
+    const bestRank = TIER_RANK[best.tier] ?? 0
+    const candidateRank = TIER_RANK[candidate.tier] ?? 0
+    if (candidateRank > bestRank) {
+      return candidate
+    }
+    if (candidateRank === bestRank) {
+      const bestExpiry = best.expiresDate ? Date.parse(best.expiresDate) : 0
+      const candidateExpiry = candidate.expiresDate ? Date.parse(candidate.expiresDate) : 0
+      if (candidateExpiry > bestExpiry) {
+        return candidate
+      }
+    }
+    return best
+  }, null)
+}
+
 export async function getUserMembershipStatus(
   db: DbClient,
   userId: string
@@ -176,9 +187,8 @@ export async function getUserMembershipStatus(
       )
     )
     .orderBy(desc(schema.userMembership.expiresDate))
-    .limit(1)
 
-  const membership = membershipResult[0] || null
+  const membership = pickBestMembership(membershipResult)
 
   const keywordsUsed = await db
     .select({ count: sql<number>`COUNT(*)` })
@@ -196,6 +206,7 @@ export async function getUserMembershipStatus(
     return {
       tier,
       productId: membership.productId,
+      provider: membership.provider ?? null,
       expiresDate: membership.expiresDate?.toString() ?? null,
       isActive: true,
       willRenew: membership.willRenew ?? true,
@@ -207,6 +218,7 @@ export async function getUserMembershipStatus(
   return {
     tier: "free",
     productId: null,
+    provider: null,
     expiresDate: null,
     isActive: false,
     willRenew: false,
