@@ -15,6 +15,8 @@ WEBSHARE_PROXY_URL=your_webshare_proxy_url
 ITUNES_PROXY_BASE_URL=http://localhost:8080
 
 # Dodo Payments (test mode for local development)
+# Production deploys with live_mode via wrangler.jsonc; keep .dev.vars on test_mode
+# so local checkout and webhook testing never touch real payments.
 # Create the two products in the Dodo test-mode dashboard and copy their IDs here.
 DODO_PAYMENTS_API_KEY=your_dodo_test_mode_api_key
 DODO_PAYMENTS_WEBHOOK_KEY=your_dodo_test_mode_webhook_signing_key
