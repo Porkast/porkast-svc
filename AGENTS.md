@@ -137,6 +137,8 @@ npx wrangler secret put TELE_BOT_TOKEN
 npx wrangler secret put RESEND_API_KEY
 npx wrangler secret put SPOTIFY_CLIENT_ID
 npx wrangler secret put SPOTIFY_CLIENT_SECRET
+npx wrangler secret put DODO_PAYMENTS_API_KEY
+npx wrangler secret put DODO_PAYMENTS_WEBHOOK_KEY
 ```
 
 ### .dev.vars (local development)
@@ -149,6 +151,11 @@ SPOTIFY_CLIENT_ID="your_spotify_client_id"
 SPOTIFY_CLIENT_SECRET="your_spotify_client_secret"
 WEBSHARE_PROXY_URL="your_webshare_proxy_url"
 ITUNES_PROXY_BASE_URL="http://localhost:8080"
+DODO_PAYMENTS_API_KEY="your_dodo_test_mode_api_key"
+DODO_PAYMENTS_WEBHOOK_KEY="your_dodo_test_mode_webhook_signing_key"
+DODO_ENVIRONMENT="test_mode"
+DODO_PRODUCT_PRO="your_test_mode_pro_product_id"
+DODO_PRODUCT_UNLIMITED="your_test_mode_unlimited_product_id"
 ```
 
 ### Wrangler vars (configured in `wrangler.jsonc`)
@@ -157,7 +164,17 @@ ITUNES_PROXY_BASE_URL="http://localhost:8080"
 PORKAST_WEB_BASE_URL="https://porkast.com"
 TELE_MINI_APP_LINK="https://porkast-tele-mini-app.guoshaotech.workers.dev"
 NODE_ENV="production"
+DODO_ENVIRONMENT="live_mode"
+DODO_PRODUCT_PRO="pdt_0Nnnq6wc4Jv3YgYJI9VtM"
+DODO_PRODUCT_UNLIMITED="pdt_0Nnnq6pxaa0bH2MDmiSGW"
 ```
+
+### Dodo Payments modes
+
+- Production runs `DODO_ENVIRONMENT=live_mode` with live product IDs and live API/webhook secrets.
+- Local development must set `DODO_ENVIRONMENT=test_mode` in `.dev.vars` (test API key, test webhook key, test product IDs). Test keys are prefixed `dodo_test_` and only work against `https://test.dodopayments.com`; live keys against `https://live.dodopayments.com`.
+- Live webhook endpoint: `https://api.porkast.com/api/membership/webhook/dodo` (managed in the Dodo dashboard under Developer → Webhooks). It must subscribe to `subscription.*` and `payment.*` events. Test mode has its own separate webhook endpoint and signing key.
+- Switching modes requires updating `DODO_ENVIRONMENT`, both product IDs, and both Cloudflare secrets — the SDK defaults to live mode if `DODO_ENVIRONMENT` is missing.
 
 ## Deployment
 
@@ -173,6 +190,8 @@ npx wrangler secret put RESEND_API_KEY
 npx wrangler secret put SPOTIFY_CLIENT_ID
 npx wrangler secret put SPOTIFY_CLIENT_SECRET
 npx wrangler secret put WEBSHARE_PROXY_URL
+npx wrangler secret put DODO_PAYMENTS_API_KEY
+npx wrangler secret put DODO_PAYMENTS_WEBHOOK_KEY
 
 # View logs (observability)
 npx wrangler tail
@@ -223,6 +242,7 @@ npx wrangler tail
 ### 6. Membership (`src/api/membership/`)
 
 - App Store subscription verification and sync
+- Dodo Payments web subscriptions: checkout (`POST /checkout`), customer portal (`POST /portal`), webhook sync (`POST /webhook/dodo`)
 - Tier-based keyword limits
 
 ### 7. Telegram Bot (`src/telegram/`)
@@ -252,7 +272,7 @@ Core data tables (D1/Drizzle):
 - `user_playlist`: User playlists
 - `user_playlist_item`: Playlist items
 - `user_listen_later`: Listen later list
-- `user_membership`: App Store subscription records
+- `user_membership`: App Store and Dodo subscription records
 - `app_session`: Authentication sessions
 - `verification_token`: Email OTP tokens
 

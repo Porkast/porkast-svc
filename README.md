@@ -42,6 +42,11 @@ TELE_BOT_TOKEN="your_telegram_bot_token"
 RESEND_API_KEY="your_resend_api_key"
 SPOTIFY_CLIENT_ID="your_spotify_client_id"
 SPOTIFY_CLIENT_SECRET="your_spotify_client_secret"
+DODO_PAYMENTS_API_KEY="your_dodo_test_mode_api_key"
+DODO_PAYMENTS_WEBHOOK_KEY="your_dodo_test_mode_webhook_signing_key"
+DODO_ENVIRONMENT="test_mode"
+DODO_PRODUCT_PRO="your_test_mode_pro_product_id"
+DODO_PRODUCT_UNLIMITED="your_test_mode_unlimited_product_id"
 ```
 
 4. Run database migrations:
@@ -74,6 +79,8 @@ npx wrangler secret put TELE_BOT_TOKEN
 npx wrangler secret put RESEND_API_KEY
 npx wrangler secret put SPOTIFY_CLIENT_ID
 npx wrangler secret put SPOTIFY_CLIENT_SECRET
+npx wrangler secret put DODO_PAYMENTS_API_KEY
+npx wrangler secret put DODO_PAYMENTS_WEBHOOK_KEY
 ```
 
 ## TypeScript Type Checking
@@ -135,6 +142,10 @@ The service runs on Cloudflare Workers with the following bindings:
 | `SPOTIFY_CLIENT_SECRET` | Spotify API client secret |
 | `PORKAST_WEB_BASE_URL` | Frontend base URL |
 | `TELE_MINI_APP_LINK` | Telegram Mini App link |
+| `DODO_PAYMENTS_API_KEY` | Dodo Payments API key (live mode) |
+| `DODO_PAYMENTS_WEBHOOK_KEY` | Dodo Payments webhook signing key (live mode) |
+
+Dodo environment variables (`DODO_ENVIRONMENT`, `DODO_PRODUCT_PRO`, `DODO_PRODUCT_UNLIMITED`) are configured in `wrangler.jsonc` for production (`live_mode`) and overridden in `.dev.vars` for local development (`test_mode`). Live webhooks are delivered to `https://api.porkast.com/api/membership/webhook/dodo`.
 
 ## Main Functional Modules
 
@@ -160,6 +171,7 @@ The service runs on Cloudflare Workers with the following bindings:
 
 ### 6. Membership (`src/api/membership/`)
 - App Store subscription verification
+- Dodo Payments web subscriptions (checkout, customer portal, webhook sync)
 - Tier-based keyword limits
 
 ### 7. Telegram Bot (`src/telegram/`)
