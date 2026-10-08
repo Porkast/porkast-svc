@@ -10,8 +10,8 @@
 		{
 			"class_name": "ItunesProxyContainer",
 			"image": "./containers/itunes-proxy/Dockerfile",
-			"instance_type": "basic",
-			"max_instances": 3
+			"instance_type": "lite",
+			"max_instances": 1
 		}
 	],
 	"triggers": {
