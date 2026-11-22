@@ -9,6 +9,7 @@ import type { InlineKeyboardButton, RenderedDetail } from './types';
 import { getUserInfoByTelegramId, createUserFromTelegramInfo } from '../db/user';
 import { createDb } from '../db/client';
 import { isBlockedSearchQuery } from '../utils/content-filter';
+import { buildPodcastEpisodeUrl } from '../utils/episode_url';
 import type { Env } from '../env';
 
 // Temporary storage for search result GUIDs to keep callback_data short
@@ -20,7 +21,7 @@ export const audioUrlMap = new Map<string, {url: string, title: string, podcast:
 
 export function renderEpisodeDetailKeyboard(env: Env, episode: FeedItem, podcast: FeedChannel, keyword: string, currentPage: number, commandType: string, callbackPrefix: string): RenderedDetail {
     const description = cleanHtmlForTelegram(episode.Description);
-    const porkastItemUrl = env.TELE_MINI_APP_LINK + `/podcast/${episode.FeedId}/episode/${episode.GUID}`
+    const porkastItemUrl = buildPodcastEpisodeUrl(env.TELE_MINI_APP_LINK, episode.FeedId, episode.GUID);
     const html = `<b>${episode.Title}</b>\n\n` +
         `<b>Podcast:</b> ${podcast.Title}\n` +
         `<b>Duration:</b> ${episode.Duration}\n` +

@@ -1,6 +1,7 @@
 import type { FeedItem } from "../models/feeds";
 import { logger } from "../utils/logger";
 import { BotCommands } from "./bot.types";
+import { buildPodcastEpisodeUrl } from "../utils/episode_url";
 
 export async function SetBotCommands(botToken: string) {
     const setCommandsUrl = `https://api.telegram.org/bot${botToken}/setMyCommands`;
@@ -44,7 +45,7 @@ export function sendSubscriptionNewUpdateMessage(
     let currentRow: { text: string; web_app: { url: string } }[] = []
 
     for (let i = 0; i < feedItemList.length; i++) {
-        const porkastItemUrl = miniAppLink + `/podcast/${feedItemList[i].FeedId}/episode/${feedItemList[i].GUID}`
+        const porkastItemUrl = buildPodcastEpisodeUrl(miniAppLink, feedItemList[i].FeedId, feedItemList[i].GUID);
         const escapedTitle = escapeHtml(feedItemList[i].Title)
         updatePodcastInfoStr += `${i + 1}. ${escapedTitle}\n`
 
