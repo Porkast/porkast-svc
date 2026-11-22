@@ -227,6 +227,119 @@ export const buildFeedItemAndKeywordInputList = async (keyword: string, country:
     }
 }
 
+export interface ItunesPodcastMetadata {
+    title: string
+    author: string
+    imageUrl: string
+    feedUrl: string
+    genres: string[]
+}
+
+export interface ItunesEpisodeMetadata {
+    title: string
+    channelTitle: string
+    author: string
+    description: string
+    imageUrl: string
+}
+
+export const lookupPodcastMetadataFromItunes = async (podcastId: string): Promise<ItunesPodcastMetadata | null> => {
+    const res = await itunesFetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(podcastId)}&entity=podcast`)
+    await checkItunesResponse(res)
+    const jsonResp = await res.json() as {
+        results?: Array<{
+            collectionName?: string
+            artistName?: string
+            artworkUrl600?: string
+            artworkUrl100?: string
+            feedUrl?: string
+            genres?: Array<{ name?: string } | string>
+            collectionExplicitness?: string
+        }>
+    }
+    const podcastInfo = jsonResp?.results?.[0]
+    if (!podcastInfo) {
+        return null
+    }
+
+    const genres = Array.isArray(podcastInfo.genres)
+        ? podcastInfo.genres
+            .map((genre) => (typeof genre === 'string' ? genre : genre?.name))
+            .filter((name): name is string => typeof name === 'string' && name.length > 0)
+        : []
+
+    if (isBlockedContent({
+        title: podcastInfo.collectionName,
+        channelTitle: podcastInfo.collectionName,
+        categories: genres,
+        explicit: podcastInfo.collectionExplicitness,
+    })) {
+        return null
+    }
+
+    return {
+        title: podcastInfo.collectionName || '',
+        author: podcastInfo.artistName || '',
+        imageUrl: podcastInfo.artworkUrl600 || podcastInfo.artworkUrl100 || '',
+        feedUrl: podcastInfo.feedUrl || '',
+        genres,
+    }
+}
+
+export const getPodcastEpisodeMetaFromItunes = async (
+    podcastId: string,
+    episodeCandidates: string[]
+): Promise<ItunesEpisodeMetadata | null> => {
+    const podcastMeta = await lookupPodcastMetadataFromItunes(podcastId)
+    if (!podcastMeta?.feedUrl) {
+        return null
+    }
+
+    const rss = await parsePodcastRSS(podcastMeta.feedUrl)
+    if (isBlockedContent({
+        title: rss.title || podcastMeta.title,
+        description: rss.description,
+        categories: rss.categories || rss.itunes?.categories || podcastMeta.genres,
+        explicit: rss.itunesExplicit,
+    })) {
+        return null
+    }
+
+    const candidateSet = new Set(episodeCandidates)
+    const targetItem = rss.items.find((item) => {
+        const guid = item?.guid ? String(item.guid) : ''
+        if (!guid) return false
+        return candidateSet.has(guid) || candidateSet.has(encodeURIComponent(guid))
+    })
+
+    if (!targetItem) {
+        return null
+    }
+
+    const rawDescription = targetItem.description || targetItem.content || targetItem.contentSnippet || ''
+    if (isBlockedContent({
+        title: targetItem.title,
+        description: rawDescription,
+        channelTitle: rss.title || podcastMeta.title,
+        explicit: targetItem.itunesExplicit,
+    })) {
+        return null
+    }
+
+    const channelTitle = rss.title || podcastMeta.title
+    const channelImage = rss.itunes?.image || rss.itunesImage || rss.imageUrl || podcastMeta.imageUrl
+    const episodeImage = targetItem.itunes?.image || targetItem.itunesImage || channelImage
+    const author = targetItem.itunes?.author || targetItem.itunesAuthor || rss.itunes?.author || rss.author || podcastMeta.author
+
+    return {
+        title: targetItem.title || '',
+        channelTitle,
+        author,
+        description: rawDescription,
+        imageUrl: episodeImage || '',
+    }
+}
+
 export const getPodcastEpisodeInfo = async (podcastId: string, episodeId: string): Promise<{ podcast: FeedChannel, episode: FeedItem }> => {
     const res = await itunesFetch(`https://itunes.apple.com/lookup?id=${podcastId}&entity=podcast`)
     await checkItunesResponse(res)

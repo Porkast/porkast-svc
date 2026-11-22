@@ -6,6 +6,7 @@ import { UserListenLaterDto } from "../../models/listen_later";
 import { DEFAULT_PODCAST_SOURCE } from "../../models/types";
 import type { Env } from '../../env'
 import { createDb } from '../../db/client'
+import { resolveUserIdFromRef, safeDecodeURIComponent } from '../../db/user'
 
 export const listenLaterRoute = new Hono<{ Bindings: Env }>()
 
@@ -33,19 +34,21 @@ listenLaterRoute.post('', zValidator('json', AddPodcastToListenLaterSchema), asy
 
 listenLaterRoute.get('/list/:userId', async (c) => {
     const db = createDb(c.env.DB)
-    const userId = c.req.param('userId')
+    const rawUserRef = safeDecodeURIComponent(c.req.param('userId'))
     const limit = c.req.query('limit') || '10'
     const offset = c.req.query('offset') || '0'
-    if (!userId) {
+    if (!rawUserRef) {
         return c.json({
             code: 1,
             msg: 'User Id is required'
         })
     }
 
+    const resolvedUserId = await resolveUserIdFromRef(db, rawUserRef)
+
     let userListenLaterList: UserListenLaterDto[]
     try {
-        userListenLaterList = await getUserListenLaterList(db, userId, Number(limit), Number(offset))
+        userListenLaterList = await getUserListenLaterList(db, resolvedUserId, Number(limit), Number(offset))
     } catch (error: Error | any) {
         return c.json({
             code: 1,
