@@ -4,6 +4,7 @@ import { AddPodcastToPlaylistRequestData, AddPodcastToPlaylistSchema, CreatePlay
 import { addPodcastToPlaylist, createPlaylist, deletePlaylist, getPlaylistById, getPlaylistPodcastList, getUserPlaylistList } from "./playlist";
 import { DEFAULT_PODCAST_SOURCE } from "../../models/types";
 import { createDb } from "../../db/client";
+import { resolveUserIdFromRef, safeDecodeURIComponent } from "../../db/user";
 import { revokeShareCodesForFeed } from "../../db/share_code";
 import type { Env } from "../../env";
 
@@ -21,17 +22,18 @@ playlistRoute.post('', zValidator('json', CreatePlaylistSchema), async (c) => {
 })
 
 playlistRoute.get('/list/:userId', async (c) => {
-    const userId = c.req.param('userId')
+    const rawUserRef = safeDecodeURIComponent(c.req.param('userId'))
     const limit = c.req.query('limit') || '10'
     const offset = c.req.query('offset') || '0'
-    if (!userId) {
+    if (!rawUserRef) {
         return c.json({
             code: 1,
             msg: 'User Id is required'
         })
     }
     const db = createDb(c.env.DB)
-    const data = await getUserPlaylistList(db, userId, limit, offset)
+    const resolvedUserId = await resolveUserIdFromRef(db, rawUserRef)
+    const data = await getUserPlaylistList(db, resolvedUserId, limit, offset)
     return c.json({
         code: 0,
         msg: 'Success',
@@ -40,18 +42,19 @@ playlistRoute.get('/list/:userId', async (c) => {
 })
 
 playlistRoute.get('/list/:userId/:playlistId', async (c) => {
-    const userId = c.req.param('userId')
+    const rawUserRef = safeDecodeURIComponent(c.req.param('userId'))
     const playlistId = c.req.param('playlistId')
     const limit = c.req.query('limit') || '10'
     const offset = c.req.query('offset') || '0'
-    if (!userId) {
+    if (!rawUserRef) {
         return c.json({
             code: 1,
             msg: 'User Id is required'
         })
     }
     const db = createDb(c.env.DB)
-    const data = await getPlaylistPodcastList(db, userId, playlistId, limit, offset)
+    const resolvedUserId = await resolveUserIdFromRef(db, rawUserRef)
+    const data = await getPlaylistPodcastList(db, resolvedUserId, playlistId, limit, offset)
     return c.json({
         code: 0,
         msg: 'Success',

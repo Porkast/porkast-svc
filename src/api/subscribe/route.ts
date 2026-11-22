@@ -5,6 +5,7 @@ import { KeywordSubscribeRequestData, KeywordSubscribeSchema } from "./types";
 import { getUserSubscriptionEpisodeList, getUserSubscriptionList, updateUserSubscription } from "./subscribe";
 import { disableUserKeywordSubscription, queryKeywordSubscriptionFeedItemList, queryUserKeywordSubscriptionDetail } from "../../db/subscription";
 import { createDb } from "../../db/client";
+import { resolveUserIdFromRef, safeDecodeURIComponent } from "../../db/user";
 import { revokeShareCodesForFeed } from "../../db/share_code";
 import { userSubscription } from '../../db/schema'
 import { setSpotifyCredentials } from '../../utils/spotify'
@@ -33,16 +34,17 @@ subscribeRouter.post('/keyword', zValidator('json', KeywordSubscribeSchema), asy
 })
 
 subscribeRouter.get('/list', async (c) => {
-    const userId = c.req.query('userId')
+    const rawUserRef = c.req.query('userId')
     const limit = c.req.query('limit') || '10'
     const offset = c.req.query('offset') || '0'
-    if (!userId) {
+    if (!rawUserRef) {
         return c.json({
             code: 1,
             msg: 'User Id is required'
         })
     }
     const db = createDb(c.env.DB)
+    const userId = await resolveUserIdFromRef(db, rawUserRef)
     const data = await getUserSubscriptionList(db, userId, limit, offset)
 
     return c.json({
@@ -53,11 +55,11 @@ subscribeRouter.get('/list', async (c) => {
 })
 
 subscribeRouter.get('/episodes/:userId', async (c) => {
-    const userId = c.req.param('userId');
+    const rawUserRef = c.req.param('userId');
     const limit = c.req.query('limit') || '10';
     const offset = c.req.query('offset') || '0';
 
-    if (!userId) {
+    if (!rawUserRef) {
         return c.json({
             code: 1,
             msg: 'User Id is required'
@@ -65,6 +67,7 @@ subscribeRouter.get('/episodes/:userId', async (c) => {
     }
 
     const db = createDb(c.env.DB)
+    const userId = await resolveUserIdFromRef(db, safeDecodeURIComponent(rawUserRef))
     const feedItemList = await getUserSubscriptionEpisodeList(
         db,
         userId,
@@ -80,8 +83,8 @@ subscribeRouter.get('/episodes/:userId', async (c) => {
 });
 
 subscribeRouter.get('/:userId/:keyword', async (c) => {
-    const userId = c.req.param('userId');
-    const keyword = decodeURIComponent(c.req.param('keyword'));
+    const rawUserRef = safeDecodeURIComponent(c.req.param('userId'));
+    const keyword = safeDecodeURIComponent(c.req.param('keyword'));
     if (isBlockedSearchQuery(keyword)) {
         return c.json({
             code: 1,
@@ -93,9 +96,10 @@ subscribeRouter.get('/:userId/:keyword', async (c) => {
     const offset = (Number(page) - 1) * limit;
 
     const db = createDb(c.env.DB)
+    const resolvedUserId = await resolveUserIdFromRef(db, rawUserRef)
     let usInfo;
     try {
-        usInfo = await queryUserKeywordSubscriptionDetail(db, userId, keyword);
+        usInfo = await queryUserKeywordSubscriptionDetail(db, resolvedUserId, keyword);
     } catch (error) {
         return c.json({
             code: 1,
@@ -105,7 +109,7 @@ subscribeRouter.get('/:userId/:keyword', async (c) => {
 
     const [feedItemList] = await queryKeywordSubscriptionFeedItemList(
         db,
-        userId,
+        resolvedUserId,
         keyword,
         usInfo.Source,
         usInfo.Country,

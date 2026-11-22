@@ -9,6 +9,7 @@ import { historyRoute } from './api/history/route'
 import { rssRoute } from './api/rss/route'
 import { membershipRouter } from './api/membership/route'
 import { webhookRouter } from './api/webhook/route'
+import { metaRoute } from './api/meta/route'
 import { dbMiddleware } from './db/middleware'
 import { createDb } from './db/client'
 import { resolveShortLink } from './api/rss/short_link'
@@ -50,6 +51,7 @@ app.route('/api/history', historyRoute)
 app.route('/api/rss', rssRoute)
 app.route('/api/membership', membershipRouter)
 app.route('/api/webhook', webhookRouter)
+app.route('/api/meta', metaRoute)
 
 app.route('/telegram', teleBot)
 

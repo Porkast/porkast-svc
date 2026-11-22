@@ -39,6 +39,19 @@ export async function getUserRowByRef(db: DbClient, userRef: string) {
   return rows[0] || null
 }
 
+export function safeDecodeURIComponent(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
+export async function resolveUserIdFromRef(db: DbClient, userRef: string): Promise<string> {
+  const row = await getUserRowByRef(db, userRef)
+  return row?.id ?? userRef
+}
+
 export function generateFallbackNickname(): string {
   return `listener-${randomBytes(4).toString('hex')}`
 }
